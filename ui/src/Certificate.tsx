@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { postSettle, type ServerState } from './api';
+import { useI18n, phaseText, dateLocale } from './i18n';
 
 type Freshness = 'none' | 'valid' | 'grace' | 'expired';
 
-/** La vista del auditor: un acta. Veredicto, vigencia, commitment. Nada mas existe. */
+/** La vista del auditor: un acta. Veredicto, vigencia, commitments. Nada mas existe. */
 export function Certificate({ state, now }: { state: ServerState | null; now: number }) {
+  const { t, lang } = useI18n();
   const [reveal, setReveal] = useState(false);
   const [thump, setThump] = useState(false);
   const lastAttest = useRef<string | null>(null);
@@ -12,7 +14,7 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
   const ledger = state?.ledger ?? null;
   const attestedAt = ledger ? Number(ledger.attestedAt) : 0;
   const hasAttest = attestedAt > 0;
-  // La vigencia viene DE LA CADENA: validUntil lo fijo el circuito en el attest
+  // La vigencia viene DE LA CADENA: validUntil lo fija el circuito en el attest
   // y el mismo circuito la hace cumplir en el settlement.
   const validUntil = ledger ? Number(ledger.validUntil) : 0;
   const windowSec = hasAttest ? validUntil - attestedAt : 0;
@@ -31,8 +33,8 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
     if (!ledger) return;
     if (lastAttest.current && lastAttest.current !== ledger.attestedAt) {
       setThump(true);
-      const t = setTimeout(() => setThump(false), 600);
-      return () => clearTimeout(t);
+      const tm = setTimeout(() => setThump(false), 600);
+      return () => clearTimeout(tm);
     }
     lastAttest.current = ledger.attestedAt;
   }, [ledger?.attestedAt]);
@@ -42,10 +44,12 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
 
   const freshLabel: Record<Freshness, [string, string]> = {
     none: ['—', ''],
-    valid: [`VIGENTE — vence en ${mmss(remaining)}`, 'valid'],
-    grace: [`EN GRACIA — vence en ${mmss(remaining)}`, 'grace'],
-    expired: ['VENCIDO — el veredicto ya no es aceptable', 'expired'],
+    valid: [t.valid_until(mmss(remaining)), 'valid'],
+    grace: [t.grace_until(mmss(remaining)), 'grace'],
+    expired: [t.expired_line, 'expired'],
   };
+
+  const job = state?.attest;
 
   return (
     <>
@@ -55,51 +59,52 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
 
         <div className="cert-head">
           <div>
-            <div className="kicker">Certificado de solvencia · prueba de conocimiento cero</div>
-            <h2>Acta de attestación</h2>
+            <div className="kicker">{t.kicker}</div>
+            <h2>{t.record_title}</h2>
             <p className="entity">
-              Entidad que acredita: <strong>{state?.entity ?? '…'}</strong>
+              {t.attesting_entity} <strong>{state?.entity ?? '…'}</strong>
             </p>
           </div>
           <Seal />
         </div>
 
-        <p className="declaration">
-          La entidad acredita que la totalidad de sus activos cubre la totalidad de sus
-          pasivos, sin exhibir importe, composición ni contraparte alguna.
-        </p>
+        <p className="declaration">{t.declaration}</p>
 
         <div className="stamp-zone">
           {!hasAttest ? (
-            <span className="stamp none">SIN ATTESTACIÓN</span>
+            <span className="stamp none">{t.not_attested}</span>
           ) : (
             <span className={`stamp ${ledger!.verdict ? 'valid' : 'invalid'} ${thump ? 'thump' : ''}`}>
-              {ledger!.verdict ? 'Solvente' : 'No solvente'}
+              {ledger!.verdict ? t.solvent : t.not_solvent}
             </span>
           )}
-          {freshness === 'expired' && <span className="overstamp">Vencido</span>}
+          {freshness === 'expired' && <span className="overstamp">{t.expired_stamp}</span>}
         </div>
 
         <dl className="clauses">
           <div className="clause">
-            <dt>Atestado</dt>
-            <dd>{hasAttest ? new Date(attestedAt * 1000).toLocaleString('es-AR', { hour12: false }) : '—'}</dd>
+            <dt>{t.attested_at}</dt>
+            <dd>
+              {hasAttest
+                ? new Date(attestedAt * 1000).toLocaleString(dateLocale(lang), { hour12: false })
+                : '—'}
+            </dd>
           </div>
           <div className="clause">
-            <dt>Vigencia (ventana {mmss(windowSec)} fijada en cadena)</dt>
+            <dt>{t.validity(mmss(windowSec))}</dt>
             <dd className={freshLabel[freshness][1]}>{freshLabel[freshness][0]}</dd>
           </div>
           <div className="clause">
-            <dt>Compromiso sobre activos</dt>
+            <dt>{t.assets_commitment}</dt>
             <dd>{ledger ? `${ledger.assetsCommitment.slice(0, 34)}…` : '—'}</dd>
           </div>
           <div className="clause">
-            <dt>Raíz Merkle de pasivos (cuentas)</dt>
+            <dt>{t.liabilities_root}</dt>
             <dd>{ledger ? `${ledger.liabilitiesRoot.slice(0, 34)}…` : '—'}</dd>
           </div>
           <div className="clause">
-            <dt>Última transacción</dt>
-            <dd>{state?.attest.txId ? `${state.attest.txId.slice(0, 34)}…` : '—'}</dd>
+            <dt>{t.last_tx}</dt>
+            <dd>{job?.txId ? `${job.txId.slice(0, 34)}…` : '—'}</dd>
           </div>
         </dl>
         {hasAttest && windowSec > 0 && (
@@ -109,30 +114,34 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
         )}
 
         <div className="cert-foot">
-          <span className="verified">Verificado en cadena — cualquiera verifica, nadie ve</span>
+          <span className="verified">{t.verified_line}</span>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
               className="reveal-btn"
-              disabled={!hasAttest || (state?.attest.running ?? false)}
+              disabled={!hasAttest || (job?.running ?? false)}
               onClick={() => postSettle()}
-              title="La cadena solo acepta un certificado solvente y vigente"
+              title={t.accept_cert_hint}
             >
-              Aceptar certificado
+              {t.accept_cert}
             </button>
             <button className="reveal-btn" onClick={() => setReveal((r) => !r)}>
-              Revelar datos
+              {t.reveal}
             </button>
           </div>
         </div>
 
-        {state?.attest.kind === 'settle' && (
+        {job?.kind === 'settle' && (
           <div className="settle-strip" aria-live="polite">
-            {state.attest.running ? (
-              <span>Verificando en cadena…</span>
-            ) : state.attest.error ? (
-              <span className="rejected">✕ {state.attest.phase} — la transacción no entró al bloque</span>
-            ) : state.attest.txId ? (
-              <span className="accepted">✓ {state.attest.phase} — tx {state.attest.txId.slice(0, 22)}…</span>
+            {job.running ? (
+              <span>{t.settle_checking}</span>
+            ) : job.error ? (
+              <span className="rejected">
+                ✕ {phaseText(t, job.phase)}{t.settle_rejected_suffix}
+              </span>
+            ) : job.txId ? (
+              <span className="accepted">
+                ✓ {phaseText(t, job.phase)} — {t.settle_tx} {job.txId.slice(0, 22)}…
+              </span>
             ) : null}
           </div>
         )}
@@ -142,9 +151,8 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
         <div className="reveal-panel" role="status">
           <div className="empty-mark">∅</div>
           <p>
-            <strong>No hay datos que revelar.</strong> Los balances nunca salieron de la
-            máquina de la entidad. Lo que viajó por la cadena es una prueba criptográfica,
-            no un número.
+            <strong>{t.reveal_title}</strong>
+            {t.reveal_body}
           </p>
         </div>
       )}
@@ -162,11 +170,11 @@ function Seal() {
       <circle cx="50" cy="50" r="47" fill="none" stroke="#8a7535" strokeWidth="1.4" />
       <circle cx="50" cy="50" r="44" fill="none" stroke="#8a7535" strokeWidth="0.5" />
       <circle cx="50" cy="50" r="28" fill="none" stroke="#8a7535" strokeWidth="0.8" />
-      <text fontSize="8.2" letterSpacing="2.6" fill="#8a7535" fontFamily="Public Sans, sans-serif">
+      <text fontSize="8.2" letterSpacing="2.6" fill="#8a7535" fontFamily="IBM Plex Mono, monospace">
         <textPath href="#ring">PROOF OF SOLVENCY · THAT EXPIRES ·</textPath>
       </text>
       <text x="50" y="54" textAnchor="middle" fontSize="9.5" letterSpacing="1.4"
-        fill="#8a7535" fontFamily="Spectral, serif" fontWeight="700">
+        fill="#c4a84f" fontFamily="Spectral, serif" fontWeight="700">
         ASFALIA
       </text>
     </svg>

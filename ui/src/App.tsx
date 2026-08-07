@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { getState, type ServerState } from './api';
+import { getState, getBook, type ServerState } from './api';
 import { Certificate } from './Certificate';
 import { Treasury } from './Treasury';
 import { Portal } from './Portal';
-import { getBook } from './api';
+import { I18nProvider, useI18n, type Lang } from './i18n';
 
 export function App() {
+  return (
+    <I18nProvider>
+      <Shell />
+    </I18nProvider>
+  );
+}
+
+function Shell() {
+  const { t, lang, setLang } = useI18n();
   const [view, setView] = useState<'auditor' | 'treasury' | 'portal'>('treasury');
   const [accounts, setAccounts] = useState<{ account: string; name: string }[]>([]);
   const [state, setState] = useState<ServerState | null>(null);
@@ -26,39 +35,52 @@ export function App() {
     poll();
     getBook().then((b) => setAccounts(b.users.map(({ account, name }) => ({ account, name }))));
     const p = setInterval(poll, 2000);
-    const t = setInterval(() => setNow(Math.floor(Date.now() / 1000) + offset.current), 1000);
-    return () => { alive = false; clearInterval(p); clearInterval(t); };
+    const tk = setInterval(() => setNow(Math.floor(Date.now() / 1000) + offset.current), 1000);
+    return () => { alive = false; clearInterval(p); clearInterval(tk); };
   }, []);
+
+  const langBtn = (l: Lang, label: string) => (
+    <button
+      className={`lang-btn ${lang === l ? 'active' : ''}`}
+      onClick={() => setLang(l)}
+      aria-pressed={lang === l}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <>
       <header className="masthead">
         <h1>
           ASFALIA
-          <small>Certificación de solvencia sin revelación de datos · Midnight Network</small>
+          <small>{t.subtitle}</small>
         </h1>
-        <div className="file-no">
-          {state ? (
-            <>
-              red: {state.network}
-              <br />
-              contrato {state.contractAddress.slice(0, 20)}…
-            </>
-          ) : (
-            'conectando…'
-          )}
+        <div className="mast-right">
+          <div className="lang-switch">{langBtn('en', 'EN')}·{langBtn('es', 'ES')}</div>
+          <div className="file-no">
+            {state ? (
+              <>
+                {t.network}: {state.network}
+                <br />
+                {t.contract} {state.contractAddress.slice(0, 20)}…
+              </>
+            ) : (
+              t.connecting
+            )}
+          </div>
         </div>
       </header>
 
       <nav className="tabs" role="tablist">
         <button role="tab" aria-selected={view === 'treasury'} onClick={() => setView('treasury')}>
-          Tesorería · entidad
+          {t.tab_treasury}
         </button>
         <button role="tab" aria-selected={view === 'auditor'} onClick={() => setView('auditor')}>
-          Certificado · auditor
+          {t.tab_auditor}
         </button>
         <button role="tab" aria-selected={view === 'portal'} onClick={() => setView('portal')}>
-          Portal · cliente
+          {t.tab_portal}
         </button>
       </nav>
 

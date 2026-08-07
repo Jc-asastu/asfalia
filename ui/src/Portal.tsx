@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { fmtCents, getInclusion, postVerifyInclusion, type InclusionResponse } from './api';
+import { useI18n } from './i18n';
 
 /** Portal del cliente: la tercera pata del sistema. Un cliente del exchange
  *  verifica que SU saldo esta contado dentro de los pasivos declarados —
  *  contra la raiz on-chain, sin ver el saldo de nadie mas. */
 export function Portal({ accounts }: { accounts: { account: string; name: string }[] }) {
+  const { t } = useI18n();
   const [selected, setSelected] = useState('');
   const [proof, setProof] = useState<InclusionResponse | null>(null);
   const [verdict, setVerdict] = useState<{ verified: boolean; reason?: string } | null>(null);
@@ -30,19 +32,16 @@ export function Portal({ accounts }: { accounts: { account: string; name: string
     <div className="portal">
       <div className="private-banner">
         <span aria-hidden="true">◆</span>
-        Vista del cliente — solo ve su propia cuenta y hashes de hermanos, jamás otro saldo
+        {t.portal_banner}
       </div>
 
       <section className="portal-card">
-        <h3>Verificación de inclusión</h3>
-        <p className="portal-lead">
-          ¿Mi saldo está contado dentro de los pasivos que la entidad declaró? La respuesta
-          no la da la entidad: la da el árbol contra la raíz publicada en cadena.
-        </p>
+        <h3>{t.portal_title}</h3>
+        <p className="portal-lead">{t.portal_lead}</p>
 
-        <label className="portal-label" htmlFor="account">Cuenta</label>
+        <label className="portal-label" htmlFor="account">{t.account}</label>
         <select id="account" value={selected} onChange={(e) => run(e.target.value)}>
-          <option value="">Elegir cuenta…</option>
+          <option value="">{t.choose_account}</option>
           {accounts.map((a) => (
             <option key={a.account} value={a.account}>
               {a.account} — {a.name}
@@ -50,27 +49,25 @@ export function Portal({ accounts }: { accounts: { account: string; name: string
           ))}
         </select>
 
-        {busy && <p className="portal-busy">Reconstruyendo el camino hasta la raíz…</p>}
+        {busy && <p className="portal-busy">{t.portal_busy}</p>}
 
         {proof && verdict && (
           <div className={`portal-result ${verdict.verified ? 'ok' : 'bad'}`} aria-live="polite">
             <div className="portal-verdict">
               {verdict.verified
-                ? '✓ Tu saldo está incluido en los pasivos declarados'
-                : `✕ No se pudo verificar${verdict.reason ? ` — ${verdict.reason}` : ': la raíz no coincide con la cadena'}`}
+                ? t.included
+                : `${t.not_verified}${
+                    verdict.reason === 'no_attest' ? ` — ${t.no_attest_reason}` : t.not_verified_reason_root
+                  }`}
             </div>
             <dl className="portal-detail">
-              <div><dt>Titular</dt><dd>{proof.name}</dd></div>
-              <div><dt>Saldo propio</dt><dd>{fmtCents(proof.cents)} USD</dd></div>
-              <div><dt>Hoja (hash de tu cuenta)</dt><dd>{proof.leafHex.slice(0, 34)}…</dd></div>
-              <div><dt>Camino de verificación</dt><dd>{proof.path.length} hermanos — solo hashes</dd></div>
-              <div><dt>Raíz reconstruida</dt><dd>{proof.rootHex.slice(0, 34)}…</dd></div>
+              <div><dt>{t.holder}</dt><dd>{proof.name}</dd></div>
+              <div><dt>{t.own_balance}</dt><dd>{fmtCents(proof.cents)} USD</dd></div>
+              <div><dt>{t.leaf}</dt><dd>{proof.leafHex.slice(0, 34)}…</dd></div>
+              <div><dt>{t.path}</dt><dd>{t.siblings(proof.path.length)}</dd></div>
+              <div><dt>{t.reconstructed_root}</dt><dd>{proof.rootHex.slice(0, 34)}…</dd></div>
             </dl>
-            <p className="portal-note">
-              La raíz reconstruida desde tu hoja se comparó contra la raíz Merkle publicada
-              on-chain por el attest. Si la entidad omitiera tu cuenta —o mintiera tu saldo—
-              este camino no cerraría.
-            </p>
+            <p className="portal-note">{t.portal_note}</p>
           </div>
         )}
       </section>

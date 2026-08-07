@@ -59,9 +59,8 @@ const job: Job = {
 async function runJob(kind: 'attest' | 'settle') {
   job.kind = kind;
   job.running = true;
-  job.phase = kind === 'attest'
-    ? 'Generando prueba ZK — los balances no salen de esta maquina'
-    : 'Aceptando certificado — la cadena verifica vigencia';
+  // Codigos, no frases: la UI los traduce (ES/EN).
+  job.phase = kind === 'attest' ? 'proving' : 'settling';
   job.startedAt = Date.now();
   job.finishedAt = null;
   job.txId = null;
@@ -69,15 +68,15 @@ async function runJob(kind: 'attest' | 'settle') {
   try {
     const { txId } = kind === 'attest' ? await conn.attest() : await conn.settle();
     job.txId = txId;
-    job.phase = kind === 'attest' ? 'Verificado en cadena' : 'Certificado aceptado en cadena';
+    job.phase = kind === 'attest' ? 'verified' : 'settled';
   } catch (e: any) {
     const msg: string = e?.cause?.message ?? e?.message ?? String(e);
     job.error = msg;
     job.phase = /expired/.test(msg)
-      ? 'RECHAZADO: el certificado esta vencido'
+      ? 'rejected_expired'
       : /not solvent/.test(msg)
-        ? 'RECHAZADO: el certificado no acredita solvencia'
-        : `Fallo el ${kind}`;
+        ? 'rejected_insolvent'
+        : kind === 'attest' ? 'failed_attest' : 'failed_settle';
   } finally {
     job.running = false;
     job.finishedAt = Date.now();
@@ -170,7 +169,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     if (!leafHex || !Array.isArray(proofPath)) return json(res, 400, { error: 'leafHex y path' });
     const ledger = await conn.readLedger();
     if (!ledger || !/[^0]/.test(ledger.liabilitiesRoot)) {
-      return json(res, 200, { verified: false, reason: 'sin attestacion on-chain todavia' });
+      return json(res, 200, { verified: false, reason: 'no_attest' });
     }
     const verified = await verifyInclusion(leafHex, proofPath, ledger.liabilitiesRoot);
     return json(res, 200, { verified, onChainRoot: ledger.liabilitiesRoot });

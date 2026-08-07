@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { fmtCents, getBook, postAttest, putBook, type Book, type ServerState } from './api';
+import { useI18n, phaseText } from './i18n';
 
 /** Back-office de la entidad. Estos libros viven SOLO en esta maquina:
  *  el server que los sirve es local. A la cadena viaja la prueba. */
 export function Treasury({ state }: { state: ServerState | null }) {
+  const { t } = useI18n();
   const [book, setBook] = useState<Book | null>(null);
   const [editing, setEditing] = useState<{ side: 'assets' | 'clients'; index: number } | null>(null);
   const [draft, setDraft] = useState('');
@@ -14,11 +16,11 @@ export function Treasury({ state }: { state: ServerState | null }) {
   const job = state?.attest;
   useEffect(() => {
     if (!job?.running || !job.startedAt) return;
-    const t = setInterval(() => setElapsed((Date.now() - job.startedAt!) / 1000), 250);
-    return () => clearInterval(t);
+    const tm = setInterval(() => setElapsed((Date.now() - job.startedAt!) / 1000), 250);
+    return () => clearInterval(tm);
   }, [job?.running, job?.startedAt]);
 
-  if (!book) return <p>Cargando libros…</p>;
+  if (!book) return <p>{t.loading_books}</p>;
 
   const sum = (xs: { cents: string }[]) => xs.reduce((a, x) => a + BigInt(x.cents), 0n);
   const totalA = sum(book.assets);
@@ -45,10 +47,10 @@ export function Treasury({ state }: { state: ServerState | null }) {
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commitEdit}
         onKeyDown={(e) => e.key === 'Enter' && commitEdit()}
-        aria-label={`Editar ${label} (USD, sin centavos)`}
+        aria-label={`${t.edit_amount}: ${label}`}
       />
     ) : (
-      <button onClick={() => startEdit(side, i, cents)} title="Editar importe">
+      <button onClick={() => startEdit(side, i, cents)} title={t.edit_amount}>
         {fmtCents(cents)}
       </button>
     );
@@ -57,13 +59,13 @@ export function Treasury({ state }: { state: ServerState | null }) {
     <>
       <div className="private-banner">
         <span aria-hidden="true">◆</span>
-        Libros privados — viven únicamente en la máquina de la entidad
+        {t.private_banner}
       </div>
 
       <div className="treasury">
         <div className="ledger-tables">
           <section className="ledger-block">
-            <h3>Activos</h3>
+            <h3>{t.assets}</h3>
             <table>
               <tbody>
                 {book.assets.map((it, i) => (
@@ -73,7 +75,7 @@ export function Treasury({ state }: { state: ServerState | null }) {
                   </tr>
                 ))}
                 <tr className="total">
-                  <td>Total</td>
+                  <td>{t.total}</td>
                   <td className="amount">{fmtCents(totalA.toString())}</td>
                 </tr>
               </tbody>
@@ -81,7 +83,7 @@ export function Treasury({ state }: { state: ServerState | null }) {
           </section>
 
           <section className="ledger-block">
-            <h3>Pasivos — cuentas de clientes ({book.users.length})</h3>
+            <h3>{t.liabilities}</h3>
             <table>
               <tbody>
                 {book.users.map((u, i) => (
@@ -93,7 +95,7 @@ export function Treasury({ state }: { state: ServerState | null }) {
                   </tr>
                 ))}
                 <tr className="total">
-                  <td>Total</td>
+                  <td>{t.total}</td>
                   <td className="amount">{fmtCents(totalL.toString())}</td>
                 </tr>
               </tbody>
@@ -102,12 +104,13 @@ export function Treasury({ state }: { state: ServerState | null }) {
 
           <div className="coverage">
             <span>
-              Cobertura de pasivos:{' '}
+              {t.coverage}{' '}
               <span className={`ratio ${covered ? 'ok' : 'bad'}`}>{ratio.toFixed(2)}%</span>
             </span>
             <span>
-              Posición: <span className={`ratio ${covered ? 'ok' : 'bad'}`}>
-                {covered ? 'cubierta' : 'descubierta'}
+              {t.position}{' '}
+              <span className={`ratio ${covered ? 'ok' : 'bad'}`}>
+                {covered ? t.covered : t.uncovered}
               </span>
             </span>
           </div>
@@ -119,35 +122,37 @@ export function Treasury({ state }: { state: ServerState | null }) {
             disabled={job?.running ?? false}
             onClick={() => postAttest()}
           >
-            {job?.running && job.kind === 'attest' ? 'Generando prueba…' : 'Generar attestación'}
+            {job?.running && job.kind === 'attest' ? t.attest_btn_busy : t.attest_btn}
           </button>
 
           <div className="job-status" aria-live="polite">
             {job?.running ? (
               <>
                 <div className="timer">{elapsed.toFixed(0)}s</div>
-                <div className="phase">{job.phase}</div>
+                <div className="phase">{phaseText(t, job.phase)}</div>
               </>
             ) : job?.error ? (
-              <div className="err">{job.phase}: {job.error.slice(0, 120)}</div>
+              <div className="err">
+                {phaseText(t, job.phase)}: {job.error.slice(0, 120)}
+              </div>
             ) : job?.txId ? (
               <>
                 <div className="phase">
-                  {job.phase} — {job.durationSec?.toFixed(1)}s
+                  {phaseText(t, job.phase)} — {job.durationSec?.toFixed(1)}s
                 </div>
                 <div className="txid">tx {job.txId}</div>
               </>
             ) : (
-              <div>Sin attestaciones en esta sesión.</div>
+              <div>{t.no_attest_yet}</div>
             )}
           </div>
 
           <p className="action-note">
-            La attestación genera una <strong>prueba de conocimiento cero</strong> sobre estos
-            libros y publica únicamente el veredicto, los tiempos, el compromiso de activos y
-            la <strong>raíz Merkle</strong> de las cuentas. Los importes no participan de
-            ninguna transmisión — y ningún cliente puede quedar afuera del árbol sin que su
-            verificación falle.
+            {t.action_note_1}
+            <strong>{t.action_note_zk}</strong>
+            {t.action_note_2}
+            <strong>{t.action_note_root}</strong>
+            {t.action_note_3}
           </p>
         </aside>
       </div>

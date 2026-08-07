@@ -492,3 +492,13 @@ button { font: inherit; cursor: pointer; }
   .ledger-block .acct { display: block; }
   .portal-card { padding: 22px 30px 20px; }
 }
+
+/* Selector de idioma */
+.mast-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.lang-switch { color: var(--gold-dim); font-size: 12px; letter-spacing: 0.08em; }
+.lang-btn {
+  background: none; border: none; color: var(--white-dim);
+  font: inherit; padding: 2px 5px; letter-spacing: 0.1em;
+}
+.lang-btn:hover { color: var(--white); }
+.lang-btn.active { color: var(--gold); }
