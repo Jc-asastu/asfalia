@@ -23,6 +23,11 @@ import { inclusionProof, verifyInclusion, merkleRoot } from '../src/merkle';
 const PORT = Number(process.env.PORT ?? 3300);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UI_DIST = path.resolve(__dirname, '..', 'ui', 'dist');
+const LOG_FILE = process.env.ASFALIA_LOG ?? path.resolve(__dirname, '..', 'data', 'attest-log.json');
+
+// Heartbeat: emision automatica de certificados, renovacion solapada.
+// 0 = apagado. En produccion: 86400 (diario). En demo: 180.
+const HEARTBEAT_SEC = Number(process.env.ASFALIA_HEARTBEAT_SEC ?? 0);
 
 // ── Estado del servidor ────────────────────────────────────────────────────────
 
@@ -36,6 +41,33 @@ async function syncPrivateState() {
     PRIVATE_STATE_ID as any,
     toPrivateState(book, users) as any,
   );
+}
+
+// ── Historial de emisiones ─────────────────────────────────────────────────────
+// Cada fila apunta a su tx on-chain: el log es un indice verificable, no una
+// fuente de verdad paralela. Los huecos entre filas son SENAL: la entidad
+// eligio no probar en ese periodo.
+
+type LogEntry = {
+  ts: number; // epoch ms de emision
+  trigger: 'heartbeat' | 'manual';
+  ok: boolean;
+  verdict: boolean | null;
+  txId: string | null;
+  attestedAt: string | null;
+  validUntil: string | null;
+  assetsCommitment: string | null;
+  liabilitiesRoot: string | null;
+  durationSec: number | null;
+  error: string | null;
+};
+
+let history: LogEntry[] = [];
+try { history = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch { /* primer arranque */ }
+
+function appendHistory(e: LogEntry) {
+  history.push(e);
+  fs.writeFileSync(LOG_FILE, JSON.stringify(history, null, 2));
 }
 
 type Job = {
@@ -81,7 +113,43 @@ async function runJob(kind: 'attest' | 'settle') {
     job.running = false;
     job.finishedAt = Date.now();
     job.durationSec = job.startedAt ? (job.finishedAt - job.startedAt) / 1000 : null;
+    if (kind === 'attest') {
+      const ledger = await conn.readLedger().catch(() => null);
+      appendHistory({
+        ts: job.finishedAt,
+        trigger: currentTrigger,
+        ok: !job.error,
+        verdict: job.error ? null : (ledger?.verdict ?? null),
+        txId: job.txId,
+        attestedAt: ledger ? String(ledger.attestedAt) : null,
+        validUntil: ledger ? String(ledger.validUntil) : null,
+        assetsCommitment: ledger?.assetsCommitment ?? null,
+        liabilitiesRoot: ledger?.liabilitiesRoot ?? null,
+        durationSec: job.durationSec,
+        error: job.error,
+      });
+    }
   }
+}
+
+let currentTrigger: 'heartbeat' | 'manual' = 'manual';
+let nextBeatAt: number | null = null;
+
+/** El latido: emite un certificado nuevo ANTES de que venza el anterior.
+ *  Automatizado — sin manos humanas. Si la entidad lo apaga, el hueco
+ *  queda visible en el historial para siempre. */
+function startHeartbeat() {
+  if (!HEARTBEAT_SEC) return;
+  const beat = () => {
+    nextBeatAt = Date.now() + HEARTBEAT_SEC * 1000;
+    if (!job.running) {
+      currentTrigger = 'heartbeat';
+      void runJob('attest').finally(() => { currentTrigger = 'manual'; });
+    }
+  };
+  console.log(`  Heartbeat: cada ${HEARTBEAT_SEC}s (ventana ${process.env.ASFALIA_VALIDITY ?? 300}s)`);
+  beat();
+  setInterval(beat, HEARTBEAT_SEC * 1000);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -116,8 +184,15 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
       entity: book.entity,
       ledger, // verdict, attestedAt (epoch s), balancesCommitment — nada mas existe
       attest: job,
+      heartbeat: HEARTBEAT_SEC
+        ? { sec: HEARTBEAT_SEC, nextAt: nextBeatAt ? Math.floor(nextBeatAt / 1000) : null }
+        : null,
       now: Math.floor(Date.now() / 1000),
     });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/history') {
+    return json(res, 200, { heartbeatSec: HEARTBEAT_SEC || null, entries: history });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/book') {
@@ -212,3 +287,5 @@ http.createServer(async (req, res) => {
     return json(res, 500, { error: e?.message ?? 'error interno' });
   }
 }).listen(PORT, () => console.log(`  Dashboard: http://localhost:${PORT}\n`));
+
+startHeartbeat();

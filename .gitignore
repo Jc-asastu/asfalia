@@ -61,3 +61,6 @@ temp/
 
 # referencia local, no forma parte del proyecto
 reference/
+
+# log de emisiones (estado de runtime, cada fila apunta a su tx)
+data/attest-log.json

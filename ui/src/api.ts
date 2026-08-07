@@ -25,8 +25,25 @@ export type ServerState = {
   entity: string;
   ledger: LedgerState;
   attest: AttestJob;
+  heartbeat: { sec: number; nextAt: number | null } | null;
   now: number; // epoch segundos del server — evita el reloj del cliente
 };
+
+export type LogEntry = {
+  ts: number;
+  trigger: 'heartbeat' | 'manual';
+  ok: boolean;
+  verdict: boolean | null;
+  txId: string | null;
+  attestedAt: string | null;
+  validUntil: string | null;
+  assetsCommitment: string | null;
+  liabilitiesRoot: string | null;
+  durationSec: number | null;
+  error: string | null;
+};
+
+export type HistoryResponse = { heartbeatSec: number | null; entries: LogEntry[] };
 
 export type BookItem = { label: string; cents: string };
 export type BookUser = { account: string; name: string; cents: string };
@@ -60,6 +77,9 @@ export const putBook = (side: 'assets' | 'clients', index: number, cents: string
 export const postAttest = () => fetch('/api/attest', { method: 'POST' }).then((r) => r.json());
 
 export const postSettle = () => fetch('/api/settle', { method: 'POST' }).then((r) => r.json());
+
+export const getHistory = (): Promise<HistoryResponse> =>
+  fetch('/api/history').then((r) => r.json());
 
 export const getInclusion = (account: string): Promise<InclusionResponse> =>
   fetch(`/api/inclusion?account=${encodeURIComponent(account)}`).then((r) => r.json());

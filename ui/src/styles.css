@@ -502,3 +502,59 @@ button { font: inherit; cursor: pointer; }
 }
 .lang-btn:hover { color: var(--white); }
 .lang-btn.active { color: var(--gold); }
+
+/* ── Historial: el latido hecho visible ────────────────────────────────── */
+
+.history { max-width: 860px; margin: 0 auto; }
+.hist-card {
+  border: 1px solid var(--gold-dim);
+  background: var(--black-light);
+  padding: 30px 36px 26px;
+}
+.hist-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.hist-head h3 { font-family: var(--font-display); font-size: 21px; font-weight: 600; color: var(--gold); }
+.hist-beat { font-size: 12.5px; color: var(--white); display: flex; align-items: center; gap: 8px; }
+.hist-beat.off { color: var(--white-dim); }
+.pulse {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 10px rgba(90, 154, 90, 0.8);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+
+.hist-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 22px; }
+.hist-cell {
+  width: 26px; height: 26px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s;
+}
+.hist-cell:hover { transform: scale(1.25); }
+.hist-cell.selected { outline: 1px solid var(--white); outline-offset: 2px; }
+.hist-cell.ok { background: var(--green); box-shadow: 0 0 8px rgba(90, 154, 90, 0.35); }
+.hist-cell.bad { background: var(--red); box-shadow: 0 0 8px rgba(160, 64, 64, 0.35); }
+.hist-cell.failed { background: none; border-color: var(--red); }
+.hist-cell.gap {
+  background: none;
+  border: 1px dashed var(--gold);
+  box-shadow: 0 0 10px var(--gold-glow);
+}
+
+.hist-legend { display: flex; gap: 22px; margin-top: 18px; font-size: 12px; color: var(--white-dim); flex-wrap: wrap; }
+.hist-legend .sw {
+  display: inline-block; width: 11px; height: 11px; border-radius: 2px;
+  margin-right: 6px; vertical-align: -1px;
+}
+.hist-legend .sw.ok { background: var(--green); }
+.hist-legend .sw.bad { background: var(--red); }
+.hist-legend .sw.gap { border: 1px dashed var(--gold); }
+
+.hist-detail { margin-top: 20px; border: 1px solid var(--black-lighter); padding: 16px 20px; }
+.hist-detail-verdict { font-weight: 700; font-size: 14.5px; }
+.hist-detail-verdict.ok-text { color: var(--green); }
+.hist-detail-verdict.bad-text { color: var(--red); }
+.hist-detail-verdict.gap-text { color: var(--gold); }

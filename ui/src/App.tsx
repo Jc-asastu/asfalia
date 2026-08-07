@@ -3,6 +3,7 @@ import { getState, getBook, type ServerState } from './api';
 import { Certificate } from './Certificate';
 import { Treasury } from './Treasury';
 import { Portal } from './Portal';
+import { History } from './History';
 import { I18nProvider, useI18n, type Lang } from './i18n';
 
 export function App() {
@@ -15,7 +16,7 @@ export function App() {
 
 function Shell() {
   const { t, lang, setLang } = useI18n();
-  const [view, setView] = useState<'auditor' | 'treasury' | 'portal'>('treasury');
+  const [view, setView] = useState<'auditor' | 'treasury' | 'portal' | 'history'>('treasury');
   const [accounts, setAccounts] = useState<{ account: string; name: string }[]>([]);
   const [state, setState] = useState<ServerState | null>(null);
   // Reloj: segundos epoch del server + tick local entre polls.
@@ -82,6 +83,9 @@ function Shell() {
         <button role="tab" aria-selected={view === 'portal'} onClick={() => setView('portal')}>
           {t.tab_portal}
         </button>
+        <button role="tab" aria-selected={view === 'history'} onClick={() => setView('history')}>
+          {t.tab_history}
+        </button>
       </nav>
 
       <main className="tabpanel">
@@ -89,6 +93,8 @@ function Shell() {
           <Certificate state={state} now={now} />
         ) : view === 'portal' ? (
           <Portal accounts={accounts} />
+        ) : view === 'history' ? (
+          <History state={state} now={now} />
         ) : (
           <Treasury state={state} />
         )}

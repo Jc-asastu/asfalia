@@ -77,6 +77,25 @@ const STR = {
     settle_rejected_suffix: ' — the transaction did not enter the block',
     settle_tx: 'tx',
 
+    // History
+    tab_history: 'Ledger · history',
+    hist_banner: 'Emission history — every certificate points to its on-chain transaction; a gap means the entity chose not to prove',
+    hist_title: 'Certificate heartbeat',
+    hist_beating: (s: number) => `emitting every ${s}s`,
+    hist_next: (s: number) => `next in ${s}s`,
+    hist_off: 'heartbeat off — manual emissions only',
+    hist_gap: 'No attestation',
+    hist_gap_legend: 'chose not to prove',
+    hist_gap_note:
+      'No certificate was emitted in this period. The daemon is automated — a gap is not an accident, it is the entity unplugging its own heartbeat. Silence, recorded.',
+    hist_failed: 'Emission failed',
+    hist_emitted: 'Emitted',
+    hist_trigger: 'Trigger',
+    hist_auto: 'heartbeat (automatic)',
+    hist_manual: 'manual',
+    hist_duration: 'Proof time',
+    hist_period: 'Period',
+
     // Portal
     portal_banner: 'Client view — sees only their own account and sibling hashes, never another balance',
     portal_title: 'Inclusion verification',
@@ -165,6 +184,24 @@ const STR = {
     settle_checking: 'Verificando en cadena…',
     settle_rejected_suffix: ' — la transacción no entró al bloque',
     settle_tx: 'tx',
+
+    tab_history: 'Historial · latido',
+    hist_banner: 'Historial de emisiones — cada certificado apunta a su transacción on-chain; un hueco significa que la entidad eligió no probar',
+    hist_title: 'Latido de certificados',
+    hist_beating: (s: number) => `emitiendo cada ${s}s`,
+    hist_next: (s: number) => `próximo en ${s}s`,
+    hist_off: 'latido apagado — solo emisiones manuales',
+    hist_gap: 'Sin attestación',
+    hist_gap_legend: 'eligió no probar',
+    hist_gap_note:
+      'En este período no se emitió certificado. El daemon es automático — un hueco no es un accidente: es la entidad desenchufando su propio latido. El silencio, registrado.',
+    hist_failed: 'Falló la emisión',
+    hist_emitted: 'Emitido',
+    hist_trigger: 'Disparo',
+    hist_auto: 'latido (automático)',
+    hist_manual: 'manual',
+    hist_duration: 'Tiempo de prueba',
+    hist_period: 'Período',
 
     portal_banner: 'Vista del cliente — solo ve su propia cuenta y hashes de hermanos, jamás otro saldo',
     portal_title: 'Verificación de inclusión',
