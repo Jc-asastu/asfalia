@@ -1,45 +1,76 @@
 /* ============================================================================
-   Enku — papel de seguridad, tinta de grabado, sello de escribania.
-   Paleta: papel verde-cheque, tinta azul-negra, sello violeta, verde billete.
+   Asfalia — negro profundo, oro hermetico, tinta calida.
+   Paleta y tipografia heredadas del playground de Hermetic Computing (Kybalion):
+   mono como cuerpo, serif para lo ceremonial, oro como unico metal.
    ========================================================================== */
 
 :root {
-  --paper: #eceee2;
-  --paper-deep: #e2e5d4;
-  --ink: #1b2430;
-  --ink-soft: #5a6472;
-  --rule: #b9bfa9;
-  --sello: #5b3e96;
-  --valid: #1f6b45;
-  --alarm: #a61b1b;
-  --grace: #8a6d1f;
+  --black: #0a0a0a;
+  --black-light: #111111;
+  --black-lighter: #1a1a1a;
+  --gold: #c4a84f;
+  --gold-dim: #8a7535;
+  --gold-glow: rgba(196, 168, 79, 0.15);
+  --gold-glow-strong: rgba(196, 168, 79, 0.35);
+  --gold-faint: rgba(196, 168, 79, 0.05);
+  --white: #e8e4dc;
+  --white-dim: #9a9690;
+  --red: #a04040;
+  --green: #5a9a5a;
   --font-display: 'Spectral', georgia, serif;
-  --font-body: 'Public Sans', system-ui, sans-serif;
-  --font-data: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
 }
 
-* { box-sizing: border-box; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
 
 body {
-  background:
-    repeating-linear-gradient(0deg, transparent 0 3px, rgba(27, 36, 48, 0.015) 3px 4px),
-    repeating-linear-gradient(90deg, transparent 0 3px, rgba(27, 36, 48, 0.015) 3px 4px),
-    var(--paper);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.5;
+  background: var(--black);
+  color: var(--white);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
   min-height: 100vh;
 }
 
-button { font: inherit; cursor: pointer; }
-:focus-visible { outline: 2px solid var(--sello); outline-offset: 2px; }
+/* Geometria ambiental: circulo y cuadrado rotado, apenas insinuados. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 50%; left: 50%;
+  width: 820px; height: 820px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(196, 168, 79, 0.04);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed;
+  top: 50%; left: 50%;
+  width: 520px; height: 520px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 1px solid rgba(196, 168, 79, 0.04);
+  pointer-events: none;
+  z-index: 0;
+}
+#root { position: relative; z-index: 1; }
 
-/* ── Encabezado de expediente ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--black-light); }
+::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
+
+button { font: inherit; cursor: pointer; }
+:focus-visible { outline: 1px solid var(--gold); outline-offset: 3px; }
+::selection { background: var(--gold-glow-strong); }
+
+/* ── Encabezado ────────────────────────────────────────────────────────── */
 
 .masthead {
-  border-bottom: 2px solid var(--ink);
-  padding: 18px 28px 14px;
+  border-bottom: 1px solid var(--gold-dim);
+  padding: 22px 30px 16px;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -48,132 +79,131 @@ button { font: inherit; cursor: pointer; }
 }
 .masthead h1 {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 26px;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  font-size: 27px;
+  letter-spacing: 0.34em;
+  color: var(--gold);
+  text-shadow: 0 0 24px var(--gold-glow);
 }
 .masthead h1 small {
-  font-family: var(--font-body);
+  display: block;
+  font-family: var(--font-mono);
   font-weight: 400;
-  font-size: 13px;
-  color: var(--ink-soft);
-  letter-spacing: 0.02em;
-  margin-left: 12px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--white-dim);
+  margin: 6px 0 0;
+  text-shadow: none;
 }
 .masthead .file-no {
-  font-family: var(--font-data);
-  font-size: 12px;
-  color: var(--ink-soft);
+  font-size: 11px;
+  color: var(--gold-dim);
   text-align: right;
+  letter-spacing: 0.06em;
 }
 
-/* ── Pestanas de carpeta ───────────────────────────────────────────────── */
+/* ── Navegacion ────────────────────────────────────────────────────────── */
 
-.tabs { display: flex; gap: 4px; padding: 16px 28px 0; }
+.tabs { display: flex; gap: 26px; padding: 18px 30px 0; }
 .tabs button {
-  border: 1px solid var(--rule);
-  border-bottom: none;
-  background: var(--paper-deep);
-  color: var(--ink-soft);
-  padding: 8px 22px 7px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: var(--white-dim);
+  padding: 6px 2px 10px;
+  font-size: 11.5px;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  border-radius: 3px 3px 0 0;
 }
+.tabs button:hover { color: var(--white); }
 .tabs button[aria-selected='true'] {
-  background: var(--paper);
-  color: var(--ink);
-  border-color: var(--ink);
-  position: relative;
+  color: var(--gold);
+  border-bottom-color: var(--gold);
 }
-.tabs button[aria-selected='true']::after {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; bottom: -1px;
-  height: 2px;
-  background: var(--paper);
-}
-.tabpanel { border-top: 1px solid var(--ink); padding: 32px 28px 60px; }
+.tabpanel { padding: 36px 30px 70px; }
 
 /* ── El certificado (vista auditor) ────────────────────────────────────── */
 
 .certificate {
   max-width: 730px;
   margin: 0 auto;
-  background: #f2f4ea;
-  border: 1px solid var(--ink);
-  outline: 1px solid var(--ink);
-  outline-offset: 4px;
-  padding: 42px 48px 36px;
+  background: var(--black-light);
+  border: 1px solid var(--gold-dim);
+  outline: 1px solid rgba(196, 168, 79, 0.18);
+  outline-offset: 5px;
+  padding: 44px 50px 38px;
   position: relative;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
 }
 .certificate .corner {
   position: absolute; width: 14px; height: 14px;
-  border-color: var(--ink-soft); border-style: solid; border-width: 0;
+  border-color: var(--gold-dim); border-style: solid; border-width: 0;
 }
-.corner.tl { top: 8px; left: 8px; border-top-width: 1px; border-left-width: 1px; }
-.corner.tr { top: 8px; right: 8px; border-top-width: 1px; border-right-width: 1px; }
-.corner.bl { bottom: 8px; left: 8px; border-bottom-width: 1px; border-left-width: 1px; }
-.corner.br { bottom: 8px; right: 8px; border-bottom-width: 1px; border-right-width: 1px; }
+.corner.tl { top: 9px; left: 9px; border-top-width: 1px; border-left-width: 1px; }
+.corner.tr { top: 9px; right: 9px; border-top-width: 1px; border-right-width: 1px; }
+.corner.bl { bottom: 9px; left: 9px; border-bottom-width: 1px; border-left-width: 1px; }
+.corner.br { bottom: 9px; right: 9px; border-bottom-width: 1px; border-right-width: 1px; }
 
 .cert-head { display: flex; justify-content: space-between; gap: 20px; }
 .cert-head .kicker {
-  font-size: 11px;
-  letter-spacing: 0.28em;
+  font-size: 10px;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  color: var(--gold-dim);
 }
 .cert-head h2 {
   font-family: var(--font-display);
   font-size: 30px;
   font-weight: 600;
-  margin-top: 6px;
+  margin-top: 8px;
   line-height: 1.15;
+  color: var(--gold);
 }
 .cert-head .entity {
-  margin-top: 10px;
-  font-size: 14px;
-  color: var(--ink-soft);
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: var(--white-dim);
 }
-.cert-head .entity strong { color: var(--ink); font-weight: 600; }
+.cert-head .entity strong { color: var(--white); font-weight: 600; }
 
 .declaration {
-  margin-top: 22px;
+  margin-top: 24px;
   font-family: var(--font-display);
   font-size: 16.5px;
   font-style: italic;
-  color: var(--ink);
-  border-left: 2px solid var(--rule);
-  padding-left: 16px;
-  max-width: 46ch;
+  color: var(--white);
+  border-left: 1px solid var(--gold-dim);
+  padding-left: 18px;
+  max-width: 48ch;
 }
 
 /* El sello-veredicto: la firma visual de todo el producto. */
-.stamp-zone { display: flex; justify-content: center; padding: 30px 0 8px; position: relative; }
+.stamp-zone { display: flex; justify-content: center; padding: 34px 0 10px; position: relative; }
 .stamp {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 34px;
-  letter-spacing: 0.22em;
+  font-size: 33px;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  padding: 10px 34px 8px;
+  padding: 12px 36px 10px;
   border: 3px double currentColor;
   border-radius: 4px;
   transform: rotate(-2.5deg);
   position: relative;
   user-select: none;
 }
-.stamp.valid { color: var(--valid); }
-.stamp.invalid { color: var(--alarm); }
-.stamp.none { color: var(--ink-soft); border-style: dashed; font-size: 22px; letter-spacing: 0.14em; }
+.stamp.valid { color: var(--green); text-shadow: 0 0 30px rgba(90, 154, 90, 0.4); }
+.stamp.invalid { color: var(--red); text-shadow: 0 0 30px rgba(160, 64, 64, 0.4); }
+.stamp.none {
+  color: var(--white-dim); border-style: dashed;
+  font-size: 20px; letter-spacing: 0.16em;
+}
 .stamp.thump { animation: thump 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
 @keyframes thump {
   from { transform: rotate(-8deg) scale(1.9); opacity: 0; }
   to { transform: rotate(-2.5deg) scale(1); opacity: 1; }
 }
-/* Sobre-sello VENCIDO: cruza el veredicto original sin borrarlo. */
+/* Sobre-sello VENCIDO en oro: cruza el veredicto original sin borrarlo. */
 .overstamp {
   position: absolute;
   top: 50%; left: 50%;
@@ -183,41 +213,45 @@ button { font: inherit; cursor: pointer; }
   font-size: 40px;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--sello);
-  border: 3px solid var(--sello);
+  color: var(--gold);
+  border: 3px solid var(--gold);
   border-radius: 4px;
-  padding: 6px 24px 4px;
-  opacity: 0.92;
-  background: rgba(242, 244, 234, 0.6);
+  padding: 6px 26px 4px;
+  background: rgba(10, 10, 10, 0.55);
+  text-shadow: 0 0 30px var(--gold-glow-strong);
 }
 @media (prefers-reduced-motion: reduce) {
   .stamp.thump { animation: none; }
 }
 
-/* Clausulas: los cuatro datos publicos, y nada mas. */
-.clauses { margin-top: 26px; border-top: 1px solid var(--rule); }
+/* Clausulas: los cinco datos publicos, y nada mas. */
+.clauses { margin-top: 28px; border-top: 1px solid var(--black-lighter); }
 .clause {
   display: flex;
   justify-content: space-between;
   gap: 18px;
-  padding: 9px 2px;
-  border-bottom: 1px solid var(--rule);
-  font-size: 13.5px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--black-lighter);
+  font-size: 12.5px;
 }
-.clause dt { color: var(--ink-soft); letter-spacing: 0.04em; }
-.clause dd { font-family: var(--font-data); text-align: right; word-break: break-all; }
-.clause dd.valid { color: var(--valid); font-weight: 600; }
-.clause dd.grace { color: var(--grace); font-weight: 600; }
-.clause dd.expired { color: var(--alarm); font-weight: 600; }
+.clause dt { color: var(--white-dim); letter-spacing: 0.05em; }
+.clause dd { text-align: right; word-break: break-all; color: var(--white); }
+.clause dd.valid { color: var(--green); font-weight: 600; }
+.clause dd.grace { color: var(--gold); font-weight: 600; }
+.clause dd.expired { color: var(--red); font-weight: 600; }
 
 /* Barra de vigencia que se agota */
-.validity-bar { height: 3px; background: var(--paper-deep); margin-top: 4px; }
-.validity-bar > div { height: 100%; background: var(--valid); transition: width 1s linear; }
-.validity-bar.grace > div { background: var(--grace); }
-.validity-bar.expired > div { background: var(--alarm); }
+.validity-bar { height: 2px; background: var(--black-lighter); margin-top: 6px; }
+.validity-bar > div {
+  height: 100%; background: var(--green);
+  box-shadow: 0 0 8px rgba(90, 154, 90, 0.5);
+  transition: width 1s linear;
+}
+.validity-bar.grace > div { background: var(--gold); box-shadow: 0 0 8px var(--gold-glow-strong); }
+.validity-bar.expired > div { background: var(--red); box-shadow: none; }
 
 .cert-foot {
-  margin-top: 26px;
+  margin-top: 28px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -225,195 +259,212 @@ button { font: inherit; cursor: pointer; }
   flex-wrap: wrap;
 }
 .cert-foot .verified {
-  font-size: 12px;
-  color: var(--ink-soft);
-  letter-spacing: 0.06em;
+  font-size: 10px;
+  color: var(--gold-dim);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .reveal-btn {
   background: none;
-  border: 1px solid var(--ink);
-  padding: 9px 18px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--ink);
+  border: 1px solid var(--gold-dim);
+  padding: 10px 20px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
   border-radius: 2px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.reveal-btn:hover { background: var(--paper-deep); }
+.reveal-btn:hover:not(:disabled) {
+  border-color: var(--gold);
+  box-shadow: 0 0 18px var(--gold-glow);
+}
+.reveal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* El acta vacia: no hay datos que revelar. */
 .reveal-panel {
   max-width: 730px;
-  margin: 18px auto 0;
-  border: 1px dashed var(--ink-soft);
-  padding: 34px 40px;
+  margin: 20px auto 0;
+  border: 1px dashed var(--gold-dim);
+  padding: 36px 42px;
   text-align: center;
-  color: var(--ink-soft);
+  color: var(--white-dim);
+  background: var(--gold-faint);
 }
 .reveal-panel .empty-mark {
-  font-family: var(--font-data);
   font-size: 30px;
   letter-spacing: 0.4em;
-  color: var(--rule);
+  color: var(--gold-dim);
 }
-.reveal-panel p { margin-top: 12px; font-size: 14px; max-width: 52ch; margin-inline: auto; }
-.reveal-panel strong { color: var(--ink); }
+.reveal-panel p { margin-top: 14px; font-size: 12.5px; max-width: 54ch; margin-inline: auto; }
+.reveal-panel strong { color: var(--gold); }
 
-/* ── Libro de tesoreria (vista entidad) ────────────────────────────────── */
+/* Resultado del settlement, dentro del acta */
+.settle-strip {
+  margin-top: 16px;
+  padding: 11px 15px;
+  border: 1px solid var(--black-lighter);
+  font-size: 12px;
+}
+.settle-strip .accepted { color: var(--green); }
+.settle-strip .rejected { color: var(--red); }
+
+/* ── Libros de tesoreria (vista entidad) ───────────────────────────────── */
 
 .private-banner {
-  max-width: 980px;
-  margin: 0 auto 22px;
-  border: 1px solid var(--sello);
-  color: var(--sello);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  max-width: 1000px;
+  margin: 0 auto 26px;
+  border: 1px solid var(--gold-dim);
+  background: var(--gold-faint);
+  color: var(--gold);
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  padding: 8px 14px;
+  padding: 10px 16px;
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
 }
 
-.treasury { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: 1fr 300px; gap: 28px; }
+.treasury { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 300px; gap: 30px; }
 @media (max-width: 900px) { .treasury { grid-template-columns: 1fr; } }
 
-.ledger-tables { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.ledger-tables { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 @media (max-width: 700px) { .ledger-tables { grid-template-columns: 1fr; } }
 
 .ledger-block h3 {
   font-family: var(--font-display);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
-  border-bottom: 2px solid var(--ink);
-  padding-bottom: 6px;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--gold-dim);
+  padding-bottom: 8px;
 }
-.ledger-block table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-.ledger-block td { padding: 7px 2px; border-bottom: 1px solid var(--rule); }
-.ledger-block td.amount {
-  font-family: var(--font-data);
-  text-align: right;
-  white-space: nowrap;
-}
+.ledger-block table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ledger-block td { padding: 8px 2px; border-bottom: 1px solid var(--black-lighter); color: var(--white-dim); }
+.ledger-block td.amount { text-align: right; white-space: nowrap; color: var(--white); }
 .ledger-block td.amount button {
   background: none; border: none;
   font: inherit; color: inherit;
   padding: 2px 4px;
-  border-bottom: 1px dashed var(--sello);
+  border-bottom: 1px dashed var(--gold-dim);
+  transition: color 0.15s;
 }
-.ledger-block td.amount button:hover { color: var(--sello); }
+.ledger-block td.amount button:hover { color: var(--gold); }
 .ledger-block td.amount input {
   font: inherit;
   width: 15ch;
   text-align: right;
-  border: 1px solid var(--sello);
-  background: #fff;
-  padding: 2px 4px;
+  border: 1px solid var(--gold);
+  background: var(--black-lighter);
+  color: var(--white);
+  padding: 3px 5px;
 }
 .ledger-block tr.total td {
-  border-top: 2px solid var(--ink);
+  border-top: 1px solid var(--gold-dim);
   border-bottom: none;
   font-weight: 600;
-  padding-top: 9px;
+  color: var(--gold);
+  padding-top: 10px;
 }
 
 .coverage {
   grid-column: 1 / -1;
-  margin-top: 4px;
-  padding: 12px 16px;
-  border: 1px solid var(--rule);
+  margin-top: 6px;
+  padding: 13px 17px;
+  border: 1px solid var(--black-lighter);
+  background: var(--black-light);
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  font-size: 13.5px;
+  font-size: 12.5px;
+  color: var(--white-dim);
   flex-wrap: wrap;
 }
-.coverage .ratio { font-family: var(--font-data); font-weight: 600; }
-.coverage .ratio.ok { color: var(--valid); }
-.coverage .ratio.bad { color: var(--alarm); }
+.coverage .ratio { font-weight: 600; }
+.coverage .ratio.ok { color: var(--green); }
+.coverage .ratio.bad { color: var(--red); }
 
 /* Panel de accion */
-.action-rail { display: flex; flex-direction: column; gap: 14px; align-self: start; }
+.action-rail { display: flex; flex-direction: column; gap: 15px; align-self: start; }
 .attest-btn {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--gold);
+  color: var(--black);
   border: none;
-  padding: 16px 20px;
-  font-size: 15px;
+  padding: 17px 20px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   border-radius: 2px;
+  transition: box-shadow 0.2s, background 0.2s;
 }
-.attest-btn:hover:not(:disabled) { background: #2c3a4d; }
-.attest-btn:disabled { opacity: 0.55; cursor: progress; }
+.attest-btn:hover:not(:disabled) {
+  background: #d4b85f;
+  box-shadow: 0 0 28px var(--gold-glow-strong);
+}
+.attest-btn:disabled { opacity: 0.45; cursor: progress; }
 
 .job-status {
-  border: 1px solid var(--rule);
-  padding: 12px 14px;
-  font-size: 13px;
-  color: var(--ink-soft);
-  min-height: 66px;
+  border: 1px solid var(--black-lighter);
+  background: var(--black-light);
+  padding: 13px 15px;
+  font-size: 12px;
+  color: var(--white-dim);
+  min-height: 68px;
 }
-.job-status .phase { color: var(--ink); }
-.job-status .timer { font-family: var(--font-data); font-size: 20px; color: var(--sello); }
-.job-status .err { color: var(--alarm); }
-.job-status .txid { font-family: var(--font-data); font-size: 11px; word-break: break-all; }
+.job-status .phase { color: var(--white); }
+.job-status .timer { font-size: 22px; color: var(--gold); text-shadow: 0 0 16px var(--gold-glow); }
+.job-status .err { color: var(--red); }
+.job-status .txid { font-size: 10.5px; word-break: break-all; color: var(--gold-dim); }
 
-.action-note { font-size: 12px; color: var(--ink-soft); line-height: 1.55; }
-.action-note strong { color: var(--sello); }
-
-/* Resultado del settlement, dentro del acta */
-.settle-strip {
-  margin-top: 14px;
-  padding: 10px 14px;
-  border: 1px solid var(--rule);
-  font-size: 13px;
-  font-family: var(--font-data);
-}
-.settle-strip .accepted { color: var(--valid); }
-.settle-strip .rejected { color: var(--alarm); }
-.reveal-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.action-note { font-size: 11px; color: var(--white-dim); line-height: 1.65; }
+.action-note strong { color: var(--gold); }
 
 /* ── Portal del cliente ────────────────────────────────────────────────── */
 
 .portal { max-width: 730px; margin: 0 auto; }
 .portal-card {
-  border: 1px solid var(--ink);
-  background: #f2f4ea;
-  padding: 32px 40px 28px;
+  border: 1px solid var(--gold-dim);
+  background: var(--black-light);
+  padding: 34px 42px 30px;
 }
-.portal-card h3 { font-family: var(--font-display); font-size: 22px; font-weight: 600; }
-.portal-lead { margin-top: 8px; color: var(--ink-soft); font-size: 14px; max-width: 56ch; }
+.portal-card h3 {
+  font-family: var(--font-display);
+  font-size: 21px; font-weight: 600;
+  color: var(--gold);
+}
+.portal-lead { margin-top: 10px; color: var(--white-dim); font-size: 12.5px; max-width: 58ch; }
 .portal-label {
-  display: block; margin-top: 20px; font-size: 11px; font-weight: 600;
-  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft);
+  display: block; margin-top: 22px; font-size: 10px;
+  letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-dim);
 }
 .portal-card select {
-  margin-top: 6px; width: 100%; max-width: 420px;
-  font: inherit; padding: 8px 10px;
-  border: 1px solid var(--ink); background: #fff; border-radius: 2px;
+  margin-top: 8px; width: 100%; max-width: 440px;
+  font: inherit; padding: 9px 11px;
+  border: 1px solid var(--gold-dim); background: var(--black-lighter);
+  color: var(--white); border-radius: 2px;
 }
-.portal-busy { margin-top: 16px; color: var(--sello); font-size: 13px; }
-.portal-result { margin-top: 22px; border: 1px solid var(--rule); padding: 18px 20px; }
-.portal-result.ok { border-color: var(--valid); }
-.portal-result.bad { border-color: var(--alarm); }
-.portal-verdict { font-weight: 700; font-size: 15px; }
-.portal-result.ok .portal-verdict { color: var(--valid); }
-.portal-result.bad .portal-verdict { color: var(--alarm); }
-.portal-detail { margin-top: 14px; }
+.portal-busy { margin-top: 16px; color: var(--gold); font-size: 12px; }
+.portal-result { margin-top: 24px; border: 1px solid var(--black-lighter); padding: 20px 22px; }
+.portal-result.ok { border-color: var(--green); box-shadow: 0 0 24px rgba(90, 154, 90, 0.12); }
+.portal-result.bad { border-color: var(--red); box-shadow: 0 0 24px rgba(160, 64, 64, 0.12); }
+.portal-verdict { font-weight: 700; font-size: 13.5px; }
+.portal-result.ok .portal-verdict { color: var(--green); }
+.portal-result.bad .portal-verdict { color: var(--red); }
+.portal-detail { margin-top: 15px; }
 .portal-detail > div {
   display: flex; justify-content: space-between; gap: 14px;
-  padding: 6px 0; border-bottom: 1px solid var(--rule); font-size: 13px;
+  padding: 7px 0; border-bottom: 1px solid var(--black-lighter); font-size: 12px;
 }
-.portal-detail dt { color: var(--ink-soft); }
-.portal-detail dd { font-family: var(--font-data); word-break: break-all; text-align: right; }
-.portal-note { margin-top: 12px; font-size: 12.5px; color: var(--ink-soft); max-width: 58ch; }
+.portal-detail dt { color: var(--white-dim); }
+.portal-detail dd { word-break: break-all; text-align: right; color: var(--white); }
+.portal-note { margin-top: 14px; font-size: 11.5px; color: var(--white-dim); max-width: 60ch; }
 
 .ledger-block .acct {
-  font-family: var(--font-data); font-size: 11.5px; color: var(--sello);
+  font-size: 10.5px; color: var(--gold-dim);
   margin-right: 6px;
 }

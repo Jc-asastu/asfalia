@@ -159,14 +159,14 @@ function Seal() {
       <defs>
         <path id="ring" d="M 50,50 m -37,0 a 37,37 0 1,1 74,0 a 37,37 0 1,1 -74,0" />
       </defs>
-      <circle cx="50" cy="50" r="47" fill="none" stroke="#5a6472" strokeWidth="1.4" />
-      <circle cx="50" cy="50" r="44" fill="none" stroke="#5a6472" strokeWidth="0.5" />
-      <circle cx="50" cy="50" r="28" fill="none" stroke="#5a6472" strokeWidth="0.8" />
-      <text fontSize="8.2" letterSpacing="2.6" fill="#5a6472" fontFamily="Public Sans, sans-serif">
+      <circle cx="50" cy="50" r="47" fill="none" stroke="#8a7535" strokeWidth="1.4" />
+      <circle cx="50" cy="50" r="44" fill="none" stroke="#8a7535" strokeWidth="0.5" />
+      <circle cx="50" cy="50" r="28" fill="none" stroke="#8a7535" strokeWidth="0.8" />
+      <text fontSize="8.2" letterSpacing="2.6" fill="#8a7535" fontFamily="Public Sans, sans-serif">
         <textPath href="#ring">PROOF OF SOLVENCY · THAT EXPIRES ·</textPath>
       </text>
       <text x="50" y="54" textAnchor="middle" fontSize="9.5" letterSpacing="1.4"
-        fill="#5a6472" fontFamily="Spectral, serif" fontWeight="700">
+        fill="#8a7535" fontFamily="Spectral, serif" fontWeight="700">
         ASFALIA
       </text>
     </svg>
