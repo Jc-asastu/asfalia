@@ -110,6 +110,7 @@ export async function connectEnku(onProgress: (msg: string) => void = () => {}) 
     return {
       verdict: l.verdict as boolean,
       attestedAt: l.attestedAt as bigint,
+      validUntil: l.validUntil as bigint,
       balancesCommitment: Buffer.from(l.balancesCommitment).toString('hex') as string,
     };
   }
@@ -124,7 +125,18 @@ export async function connectEnku(onProgress: (msg: string) => void = () => {}) 
       ? BigInt(process.env.ENKU_NOW)
       : BigInt(Math.floor(Date.now() / 1000) - 30);
     const tolerance = process.env.ENKU_TOL ? BigInt(process.env.ENKU_TOL) : BigInt(toleranceSec);
-    const tx = await deployed.callTx.attest(claimed, tolerance);
+    // Ventana de vigencia del certificado. Corta a proposito en el demo:
+    // el vencimiento se tiene que poder mostrar en vivo.
+    const validity = BigInt(process.env.ENKU_VALIDITY ?? 300);
+    const tx = await deployed.callTx.attest(claimed, tolerance, validity);
+    return { txId: tx.public.txId as string, blockHeight: tx.public.blockHeight as number };
+  }
+
+  /** Settlement: la contraparte acepta el certificado. La cadena solo lo
+   *  permite si el veredicto es solvente Y la ventana sigue abierta —
+   *  vencido, el assert de blockTime rechaza la tx. */
+  async function settle() {
+    const tx = await deployed.callTx.settle();
     return { txId: tx.public.txId as string, blockHeight: tx.public.blockHeight as number };
   }
 
@@ -133,5 +145,5 @@ export async function connectEnku(onProgress: (msg: string) => void = () => {}) 
     await walletCtx.wallet.stop();
   }
 
-  return { network, deployment, walletCtx, providers, deployed, Enku, readLedger, attest, close };
+  return { network, deployment, walletCtx, providers, deployed, Enku, readLedger, attest, settle, close };
 }

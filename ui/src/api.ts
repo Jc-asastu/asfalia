@@ -3,10 +3,12 @@
 export type LedgerState = {
   verdict: boolean;
   attestedAt: string; // epoch segundos (bigint serializado)
+  validUntil: string; // epoch segundos — la cadena rechaza settlement despues de esto
   balancesCommitment: string;
 } | null;
 
 export type AttestJob = {
+  kind: 'attest' | 'settle' | null;
   running: boolean;
   phase: string;
   startedAt: number | null;
@@ -45,6 +47,8 @@ export const putBook = (side: 'assets' | 'liabilities', index: number, cents: st
   }).then((r) => r.json());
 
 export const postAttest = () => fetch('/api/attest', { method: 'POST' }).then((r) => r.json());
+
+export const postSettle = () => fetch('/api/settle', { method: 'POST' }).then((r) => r.json());
 
 /** Centavos -> "1.824.500.000,00" (es-AR). */
 export const fmtCents = (cents: string) => {

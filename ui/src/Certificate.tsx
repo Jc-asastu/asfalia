@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ServerState } from './api';
-import { VALIDITY_SEC } from './App';
+import { postSettle, type ServerState } from './api';
 
 type Freshness = 'none' | 'valid' | 'grace' | 'expired';
 
@@ -13,8 +12,11 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
   const ledger = state?.ledger ?? null;
   const attestedAt = ledger ? Number(ledger.attestedAt) : 0;
   const hasAttest = attestedAt > 0;
-  const elapsed = hasAttest ? now - attestedAt : 0;
-  const remaining = Math.max(0, VALIDITY_SEC - elapsed);
+  // La vigencia viene DE LA CADENA: validUntil lo fijo el circuito en el attest
+  // y el mismo circuito la hace cumplir en el settlement.
+  const validUntil = ledger ? Number(ledger.validUntil) : 0;
+  const windowSec = hasAttest ? validUntil - attestedAt : 0;
+  const remaining = hasAttest ? Math.max(0, validUntil - now) : 0;
 
   const freshness: Freshness = !hasAttest
     ? 'none'
@@ -84,7 +86,7 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
             <dd>{hasAttest ? new Date(attestedAt * 1000).toLocaleString('es-AR', { hour12: false }) : '—'}</dd>
           </div>
           <div className="clause">
-            <dt>Vigencia (ventana {mmss(VALIDITY_SEC)})</dt>
+            <dt>Vigencia (ventana {mmss(windowSec)} fijada en cadena)</dt>
             <dd className={freshLabel[freshness][1]}>{freshLabel[freshness][0]}</dd>
           </div>
           <div className="clause">
@@ -96,18 +98,40 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
             <dd>{state?.attest.txId ? `${state.attest.txId.slice(0, 34)}…` : '—'}</dd>
           </div>
         </dl>
-        {hasAttest && (
+        {hasAttest && windowSec > 0 && (
           <div className={`validity-bar ${freshness}`}>
-            <div style={{ width: `${(remaining / VALIDITY_SEC) * 100}%` }} />
+            <div style={{ width: `${(remaining / windowSec) * 100}%` }} />
           </div>
         )}
 
         <div className="cert-foot">
           <span className="verified">Verificado en cadena — cualquiera verifica, nadie ve</span>
-          <button className="reveal-btn" onClick={() => setReveal((r) => !r)}>
-            Revelar datos
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              className="reveal-btn"
+              disabled={!hasAttest || (state?.attest.running ?? false)}
+              onClick={() => postSettle()}
+              title="La cadena solo acepta un certificado solvente y vigente"
+            >
+              Aceptar certificado
+            </button>
+            <button className="reveal-btn" onClick={() => setReveal((r) => !r)}>
+              Revelar datos
+            </button>
+          </div>
         </div>
+
+        {state?.attest.kind === 'settle' && (
+          <div className="settle-strip" aria-live="polite">
+            {state.attest.running ? (
+              <span>Verificando en cadena…</span>
+            ) : state.attest.error ? (
+              <span className="rejected">✕ {state.attest.phase} — la transacción no entró al bloque</span>
+            ) : state.attest.txId ? (
+              <span className="accepted">✓ {state.attest.phase} — tx {state.attest.txId.slice(0, 22)}…</span>
+            ) : null}
+          </div>
+        )}
       </article>
 
       {reveal && (

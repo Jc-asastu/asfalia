@@ -26,7 +26,8 @@ const DATA_FILE = process.env.ENKU_DATA ?? path.resolve(__dirname, '..', 'data',
 let conn: EnkuConnection;
 let book: EntityBook = loadEntityBook(DATA_FILE);
 
-type AttestJob = {
+type Job = {
+  kind: 'attest' | 'settle' | null;
   running: boolean;
   phase: string;
   startedAt: number | null;
@@ -35,27 +36,36 @@ type AttestJob = {
   txId: string | null;
   error: string | null;
 };
-const job: AttestJob = {
-  running: false, phase: 'idle', startedAt: null, finishedAt: null,
+const job: Job = {
+  kind: null, running: false, phase: 'idle', startedAt: null, finishedAt: null,
   durationSec: null, txId: null, error: null,
 };
 
-async function runAttest() {
+/** Corre attest o settle con el mismo ciclo de vida de job.
+ *  En settle, un rechazo de la cadena NO es una falla del sistema:
+ *  es el producto funcionando (certificado vencido = tx rechazada). */
+async function runJob(kind: 'attest' | 'settle') {
+  job.kind = kind;
   job.running = true;
-  job.phase = 'Generando prueba ZK — los balances no salen de esta maquina';
+  job.phase = kind === 'attest'
+    ? 'Generando prueba ZK — los balances no salen de esta maquina'
+    : 'Aceptando certificado — la cadena verifica vigencia';
   job.startedAt = Date.now();
   job.finishedAt = null;
   job.txId = null;
   job.error = null;
   try {
-    const { txId } = await conn.attest();
+    const { txId } = kind === 'attest' ? await conn.attest() : await conn.settle();
     job.txId = txId;
-    job.phase = 'Verificado en cadena';
+    job.phase = kind === 'attest' ? 'Verificado en cadena' : 'Certificado aceptado en cadena';
   } catch (e: any) {
-    // El circuito corta ANTES de probar si algo no cierra (p. ej. insolvencia
-    // no es error: el veredicto false sube igual). Aca solo caen fallas reales.
-    job.error = e?.message ?? String(e);
-    job.phase = 'Fallo el attest';
+    const msg: string = e?.cause?.message ?? e?.message ?? String(e);
+    job.error = msg;
+    job.phase = /expired/.test(msg)
+      ? 'RECHAZADO: el certificado esta vencido'
+      : /not solvent/.test(msg)
+        ? 'RECHAZADO: el certificado no acredita solvencia'
+        : `Fallo el ${kind}`;
   } finally {
     job.running = false;
     job.finishedAt = Date.now();
@@ -119,9 +129,9 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     return json(res, 200, { ok: true, book });
   }
 
-  if (req.method === 'POST' && url.pathname === '/api/attest') {
-    if (job.running) return json(res, 409, { error: 'attest en curso' });
-    void runAttest();
+  if (req.method === 'POST' && (url.pathname === '/api/attest' || url.pathname === '/api/settle')) {
+    if (job.running) return json(res, 409, { error: 'operacion en curso' });
+    void runJob(url.pathname === '/api/attest' ? 'attest' : 'settle');
     return json(res, 202, { started: true });
   }
 

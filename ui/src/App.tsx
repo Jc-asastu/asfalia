@@ -3,10 +3,6 @@ import { getState, type ServerState } from './api';
 import { Certificate } from './Certificate';
 import { Treasury } from './Treasury';
 
-/** Ventana de vigencia del demo: 5 minutos. Es un parametro visible y honesto,
- *  no un truco de UI — la capa on-chain lo hace cumplir en el circuito. */
-export const VALIDITY_SEC = 300;
-
 export function App() {
   const [view, setView] = useState<'auditor' | 'treasury'>('treasury');
   const [state, setState] = useState<ServerState | null>(null);

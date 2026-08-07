@@ -19,6 +19,10 @@ export ledger verdict: Boolean;
 // en una ventana alrededor del tiempo real, sin antedatar ni posdatar.
 export ledger attestedAt: Uint<64>;
 
+// Hasta cuando es aceptable el veredicto (epoch segundos). Pasado este punto
+// la cadena misma rechaza el settlement: el certificado VENCE por circuito.
+export ledger validUntil: Uint<64>;
+
 // Commitment de los balances + nonce. Ata la prueba a los numeros reales:
 // el circuito nunca confia en un valor crudo del prover.
 export ledger balancesCommitment: Bytes<32>;
@@ -38,7 +42,7 @@ witness commitmentNonce(): Bytes<32>;
 // `now` lo declara el prover, pero el circuito lo valida contra el tiempo de
 // bloque real: debe cumplirse  now <= blockTime < now + tolerance.
 // tolerance en segundos (p. ej. 300 = 5 minutos).
-export circuit attest(now: Uint<64>, tolerance: Uint<32>): [] {
+export circuit attest(now: Uint<64>, tolerance: Uint<32>, validitySecs: Uint<32>): [] {
   const assets = assetBalances();
   const liabilities = liabilityBalances();
   const nonce = commitmentNonce();
@@ -63,5 +67,14 @@ export circuit attest(now: Uint<64>, tolerance: Uint<32>): [] {
   assert(blockTimeLt(claimed + disclose(tolerance) as Uint<64>), "attest timestamp is stale");
 
   attestedAt = claimed;
+  validUntil = (claimed + disclose(validitySecs)) as Uint<64>;
   verdict = disclose(totalAssets >= totalLiabilities);
+}
+
+// El settlement: la contraparte acepta el certificado. Dos condiciones y
+// ninguna es opinable — solvente, y todavia vigente. Pasada la ventana,
+// la MISMA prueba criptograficamente valida es rechazada por vieja.
+export circuit settle(): [] {
+  assert(verdict, "certificate is not solvent");
+  assert(blockTimeLt(validUntil), "certificate has expired");
 }

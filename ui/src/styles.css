@@ -365,3 +365,15 @@ button { font: inherit; cursor: pointer; }
 
 .action-note { font-size: 12px; color: var(--ink-soft); line-height: 1.55; }
 .action-note strong { color: var(--sello); }
+
+/* Resultado del settlement, dentro del acta */
+.settle-strip {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--rule);
+  font-size: 13px;
+  font-family: var(--font-data);
+}
+.settle-strip .accepted { color: var(--valid); }
+.settle-strip .rejected { color: var(--alarm); }
+.reveal-btn:disabled { opacity: 0.45; cursor: not-allowed; }
