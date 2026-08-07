@@ -613,3 +613,35 @@ button { font: inherit; cursor: pointer; }
 .chip.bad { color: var(--red); }
 .scan-detail-row td { background: var(--black); }
 .scan-empty { text-align: center; color: var(--white-dim); padding: 22px; }
+
+/* ── Landing de roles: la separacion ES el producto ────────────────────── */
+
+.role-landing { max-width: 900px; margin: 0 auto; padding: 60px 30px; text-align: center; }
+.role-landing h2 {
+  font-family: var(--font-display);
+  font-size: 30px; font-weight: 600; color: var(--gold);
+  text-shadow: 0 0 24px var(--gold-glow);
+}
+.role-lead { margin: 14px auto 36px; color: var(--white-dim); font-size: 14px; max-width: 52ch; }
+.role-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+@media (max-width: 760px) { .role-cards { grid-template-columns: 1fr; } }
+.role-card {
+  background: var(--black-light);
+  border: 1px solid var(--gold-dim);
+  padding: 28px 22px;
+  text-align: left;
+  display: flex; flex-direction: column; gap: 12px;
+  border-radius: 2px;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.role-card:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 28px var(--gold-glow);
+  transform: translateY(-2px);
+}
+.role-name {
+  font-family: var(--font-display);
+  font-size: 19px; font-weight: 600; color: var(--gold);
+}
+.role-desc { font-size: 12.5px; color: var(--white-dim); line-height: 1.6; }
+.role-change { margin-left: 10px; color: var(--gold-dim); text-decoration: underline; }
