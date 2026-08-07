@@ -3,7 +3,7 @@
 El principio rector: **nada en vivo que tarde más de 30 segundos.** El attest tarda
 75-90 s — por eso el heartbeat es el protagonista: cuando arranca el pitch, el grid
 ya cuenta toda la historia solo. Lo único que se dispara en vivo es el settle
-(rápido) y el "revelar datos" (instantáneo).
+(rápido); la privacidad la muestra el explorador oficial (Transfer 0 tokens).
 
 ## Parámetros
 

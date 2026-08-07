@@ -16,11 +16,17 @@ export interface TourStep {
 
 interface Rect { top: number; left: number; width: number; height: number }
 
-function measure(target: string): Rect | null {
+function measure(target: string, scroll: boolean): Rect | null {
   const el = document.querySelector(`[data-tour="${target}"]`);
   if (!el) return null;
   const box = el.getBoundingClientRect();
   if (box.width === 0 && box.height === 0) return null;
+  // Pantallas bajas: si el blanco no entra completo en el viewport, centrarlo.
+  if (scroll && (box.top < 70 || box.bottom > window.innerHeight - 20)) {
+    el.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
+    const b2 = el.getBoundingClientRect();
+    return { top: b2.top, left: b2.left, width: b2.width, height: b2.height };
+  }
   return { top: box.top, left: box.left, width: box.width, height: box.height };
 }
 
@@ -104,8 +110,8 @@ export function GuidedTour({
     // La vista destino puede estar montando o esperando datos: reintentar
     // hasta 6 segundos antes de rendirse.
     let tries = 0;
-    const recompute = () => {
-      const r = measure(currentStep.target);
+    const recompute = (scroll = true) => {
+      const r = measure(currentStep.target, scroll);
       if (r) { setHole(r); return true; }
       return false;
     };
@@ -113,7 +119,7 @@ export function GuidedTour({
     const iv = setInterval(() => {
       if (recompute() || tries++ > 30) clearInterval(iv);
     }, 200);
-    const onResize = () => recompute();
+    const onResize = () => recompute(false);
     window.addEventListener('resize', onResize);
     return () => { window.removeEventListener('resize', onResize); clearInterval(iv); };
   }, [phase, currentStep, stepIndex]);
