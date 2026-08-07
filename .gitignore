@@ -58,3 +58,6 @@ temp/
 
 # Midnight wallet sync state (per-network serialized wallet state cache)
 .midnight-wallet-state/
+
+# referencia local, no forma parte del proyecto
+reference/
