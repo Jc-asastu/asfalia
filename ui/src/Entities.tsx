@@ -42,6 +42,11 @@ export function Entities({
             </span>
           </div>
           <div className="entity-row-status">
+            {state?.score && (
+              <span className={`score-badge ${state.score.level}`}>
+                {t.score_label} {state.score.score}
+              </span>
+            )}
             {hasAttest ? (
               <>
                 <span className={`chip ${ledger!.verdict ? 'ok' : 'bad'}`}>

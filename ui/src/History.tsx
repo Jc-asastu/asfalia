@@ -73,6 +73,11 @@ export function History({ state, now }: { state: ServerState | null; now: number
       <section className="hist-card">
         <div className="hist-head">
           <h3>{t.hist_title}</h3>
+          {data.score && (
+            <div className={`score-badge big ${data.score.level}`} data-tour="score">
+              {t.score_label} {data.score.score} · {t[`score_${data.score.level}`]}
+            </div>
+          )}
           {hb ? (
             <div className="hist-beat">
               <span className="pulse" aria-hidden="true" />
@@ -106,6 +111,12 @@ export function History({ state, now }: { state: ServerState | null; now: number
               {fmtTime(chain.data.contractAction.transaction.block.timestamp)}
             </span>
           </div>
+        )}
+
+        {data.score && (
+          <p className="score-note">
+            {t.score_breakdown(data.score.greens, data.score.reds, data.score.gaps)} — {t.score_note}
+          </p>
         )}
 
         <div className="hist-legend">

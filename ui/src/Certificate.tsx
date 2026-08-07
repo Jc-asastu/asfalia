@@ -102,6 +102,12 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
             <dd>{ledger ? `${ledger.liabilitiesRoot.slice(0, 34)}…` : '—'}</dd>
           </div>
           <div className="clause">
+            <dt>{t.score_label}</dt>
+            <dd className={state?.score ? `score-text ${state.score.level}` : ''}>
+              {state?.score ? `${state.score.score} / 100 · ${t[`score_${state.score.level}`]}` : '—'}
+            </dd>
+          </div>
+          <div className="clause">
             <dt>{t.last_tx}</dt>
             <dd>{job?.txId ? `${job.txId.slice(0, 34)}…` : '—'}</dd>
           </div>

@@ -19,12 +19,22 @@ export type AttestJob = {
   error: string | null;
 };
 
+export type Score = {
+  score: number;
+  level: 'excellent' | 'good' | 'watch' | 'poor';
+  greens: number;
+  reds: number;
+  gaps: number;
+  failed: number;
+};
+
 export type ServerState = {
   network: string;
   contractAddress: string;
   entity: string;
   ledger: LedgerState;
   attest: AttestJob;
+  score: Score;
   heartbeat: { sec: number; nextAt: number | null } | null;
   now: number; // epoch segundos del server — evita el reloj del cliente
 };
@@ -43,7 +53,7 @@ export type LogEntry = {
   error: string | null;
 };
 
-export type HistoryResponse = { heartbeatSec: number | null; entries: LogEntry[] };
+export type HistoryResponse = { heartbeatSec: number | null; entries: LogEntry[]; score: Score };
 
 export type BookItem = { label: string; cents: string };
 export type BookUser = { account: string; name: string; cents: string };

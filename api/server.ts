@@ -20,6 +20,7 @@ import {
 } from '../src/entity-data';
 import { PRIVATE_STATE_ID } from '../src/contract';
 import { inclusionProof, verifyInclusion, merkleRoot } from '../src/merkle';
+import { computeScore } from '../src/score';
 
 const PORT = Number(process.env.PORT ?? 3300);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -186,6 +187,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
       entity: book.entity,
       ledger, // verdict, attestedAt (epoch s), balancesCommitment — nada mas existe
       attest: job,
+      score: computeScore(history, HEARTBEAT_SEC || null, Date.now()),
       heartbeat: HEARTBEAT_SEC
         ? { sec: HEARTBEAT_SEC, nextAt: nextBeatAt ? Math.floor(nextBeatAt / 1000) : null }
         : null,
@@ -194,7 +196,11 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   }
 
   if (req.method === 'GET' && url.pathname === '/api/history') {
-    return json(res, 200, { heartbeatSec: HEARTBEAT_SEC || null, entries: history });
+    return json(res, 200, {
+      heartbeatSec: HEARTBEAT_SEC || null,
+      entries: history,
+      score: computeScore(history, HEARTBEAT_SEC || null, Date.now()),
+    });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/scan') {
