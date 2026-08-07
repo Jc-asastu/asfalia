@@ -16,7 +16,7 @@
     "proof-server:start": "docker compose up -d",
     "proof-server:stop": "docker compose down",
     "clean": "rm -rf contracts/managed .midnight-state.json .midnight-wallet-state",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npx tsx scripts/circuit-check.ts",
     "test:e2e": "tsx scripts/e2e-check.ts"
   },
   "dependencies": {
