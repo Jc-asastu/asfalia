@@ -1,0 +1,367 @@
+/* ============================================================================
+   Enku — papel de seguridad, tinta de grabado, sello de escribania.
+   Paleta: papel verde-cheque, tinta azul-negra, sello violeta, verde billete.
+   ========================================================================== */
+
+:root {
+  --paper: #eceee2;
+  --paper-deep: #e2e5d4;
+  --ink: #1b2430;
+  --ink-soft: #5a6472;
+  --rule: #b9bfa9;
+  --sello: #5b3e96;
+  --valid: #1f6b45;
+  --alarm: #a61b1b;
+  --grace: #8a6d1f;
+  --font-display: 'Spectral', georgia, serif;
+  --font-body: 'Public Sans', system-ui, sans-serif;
+  --font-data: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; }
+
+body {
+  background:
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(27, 36, 48, 0.015) 3px 4px),
+    repeating-linear-gradient(90deg, transparent 0 3px, rgba(27, 36, 48, 0.015) 3px 4px),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+button { font: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--sello); outline-offset: 2px; }
+
+/* ── Encabezado de expediente ──────────────────────────────────────────── */
+
+.masthead {
+  border-bottom: 2px solid var(--ink);
+  padding: 18px 28px 14px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.masthead h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: 0.04em;
+}
+.masthead h1 small {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+  margin-left: 12px;
+}
+.masthead .file-no {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+/* ── Pestanas de carpeta ───────────────────────────────────────────────── */
+
+.tabs { display: flex; gap: 4px; padding: 16px 28px 0; }
+.tabs button {
+  border: 1px solid var(--rule);
+  border-bottom: none;
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+  padding: 8px 22px 7px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 3px 3px 0 0;
+}
+.tabs button[aria-selected='true'] {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--ink);
+  position: relative;
+}
+.tabs button[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--paper);
+}
+.tabpanel { border-top: 1px solid var(--ink); padding: 32px 28px 60px; }
+
+/* ── El certificado (vista auditor) ────────────────────────────────────── */
+
+.certificate {
+  max-width: 730px;
+  margin: 0 auto;
+  background: #f2f4ea;
+  border: 1px solid var(--ink);
+  outline: 1px solid var(--ink);
+  outline-offset: 4px;
+  padding: 42px 48px 36px;
+  position: relative;
+}
+.certificate .corner {
+  position: absolute; width: 14px; height: 14px;
+  border-color: var(--ink-soft); border-style: solid; border-width: 0;
+}
+.corner.tl { top: 8px; left: 8px; border-top-width: 1px; border-left-width: 1px; }
+.corner.tr { top: 8px; right: 8px; border-top-width: 1px; border-right-width: 1px; }
+.corner.bl { bottom: 8px; left: 8px; border-bottom-width: 1px; border-left-width: 1px; }
+.corner.br { bottom: 8px; right: 8px; border-bottom-width: 1px; border-right-width: 1px; }
+
+.cert-head { display: flex; justify-content: space-between; gap: 20px; }
+.cert-head .kicker {
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.cert-head h2 {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 600;
+  margin-top: 6px;
+  line-height: 1.15;
+}
+.cert-head .entity {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.cert-head .entity strong { color: var(--ink); font-weight: 600; }
+
+.declaration {
+  margin-top: 22px;
+  font-family: var(--font-display);
+  font-size: 16.5px;
+  font-style: italic;
+  color: var(--ink);
+  border-left: 2px solid var(--rule);
+  padding-left: 16px;
+  max-width: 46ch;
+}
+
+/* El sello-veredicto: la firma visual de todo el producto. */
+.stamp-zone { display: flex; justify-content: center; padding: 30px 0 8px; position: relative; }
+.stamp {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 34px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  padding: 10px 34px 8px;
+  border: 3px double currentColor;
+  border-radius: 4px;
+  transform: rotate(-2.5deg);
+  position: relative;
+  user-select: none;
+}
+.stamp.valid { color: var(--valid); }
+.stamp.invalid { color: var(--alarm); }
+.stamp.none { color: var(--ink-soft); border-style: dashed; font-size: 22px; letter-spacing: 0.14em; }
+.stamp.thump { animation: thump 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes thump {
+  from { transform: rotate(-8deg) scale(1.9); opacity: 0; }
+  to { transform: rotate(-2.5deg) scale(1); opacity: 1; }
+}
+/* Sobre-sello VENCIDO: cruza el veredicto original sin borrarlo. */
+.overstamp {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -58%) rotate(8deg);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 40px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--sello);
+  border: 3px solid var(--sello);
+  border-radius: 4px;
+  padding: 6px 24px 4px;
+  opacity: 0.92;
+  background: rgba(242, 244, 234, 0.6);
+}
+@media (prefers-reduced-motion: reduce) {
+  .stamp.thump { animation: none; }
+}
+
+/* Clausulas: los cuatro datos publicos, y nada mas. */
+.clauses { margin-top: 26px; border-top: 1px solid var(--rule); }
+.clause {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13.5px;
+}
+.clause dt { color: var(--ink-soft); letter-spacing: 0.04em; }
+.clause dd { font-family: var(--font-data); text-align: right; word-break: break-all; }
+.clause dd.valid { color: var(--valid); font-weight: 600; }
+.clause dd.grace { color: var(--grace); font-weight: 600; }
+.clause dd.expired { color: var(--alarm); font-weight: 600; }
+
+/* Barra de vigencia que se agota */
+.validity-bar { height: 3px; background: var(--paper-deep); margin-top: 4px; }
+.validity-bar > div { height: 100%; background: var(--valid); transition: width 1s linear; }
+.validity-bar.grace > div { background: var(--grace); }
+.validity-bar.expired > div { background: var(--alarm); }
+
+.cert-foot {
+  margin-top: 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.cert-foot .verified {
+  font-size: 12px;
+  color: var(--ink-soft);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.reveal-btn {
+  background: none;
+  border: 1px solid var(--ink);
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  border-radius: 2px;
+}
+.reveal-btn:hover { background: var(--paper-deep); }
+
+/* El acta vacia: no hay datos que revelar. */
+.reveal-panel {
+  max-width: 730px;
+  margin: 18px auto 0;
+  border: 1px dashed var(--ink-soft);
+  padding: 34px 40px;
+  text-align: center;
+  color: var(--ink-soft);
+}
+.reveal-panel .empty-mark {
+  font-family: var(--font-data);
+  font-size: 30px;
+  letter-spacing: 0.4em;
+  color: var(--rule);
+}
+.reveal-panel p { margin-top: 12px; font-size: 14px; max-width: 52ch; margin-inline: auto; }
+.reveal-panel strong { color: var(--ink); }
+
+/* ── Libro de tesoreria (vista entidad) ────────────────────────────────── */
+
+.private-banner {
+  max-width: 980px;
+  margin: 0 auto 22px;
+  border: 1px solid var(--sello);
+  color: var(--sello);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.treasury { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: 1fr 300px; gap: 28px; }
+@media (max-width: 900px) { .treasury { grid-template-columns: 1fr; } }
+
+.ledger-tables { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+@media (max-width: 700px) { .ledger-tables { grid-template-columns: 1fr; } }
+
+.ledger-block h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 6px;
+}
+.ledger-block table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.ledger-block td { padding: 7px 2px; border-bottom: 1px solid var(--rule); }
+.ledger-block td.amount {
+  font-family: var(--font-data);
+  text-align: right;
+  white-space: nowrap;
+}
+.ledger-block td.amount button {
+  background: none; border: none;
+  font: inherit; color: inherit;
+  padding: 2px 4px;
+  border-bottom: 1px dashed var(--sello);
+}
+.ledger-block td.amount button:hover { color: var(--sello); }
+.ledger-block td.amount input {
+  font: inherit;
+  width: 15ch;
+  text-align: right;
+  border: 1px solid var(--sello);
+  background: #fff;
+  padding: 2px 4px;
+}
+.ledger-block tr.total td {
+  border-top: 2px solid var(--ink);
+  border-bottom: none;
+  font-weight: 600;
+  padding-top: 9px;
+}
+
+.coverage {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13.5px;
+  flex-wrap: wrap;
+}
+.coverage .ratio { font-family: var(--font-data); font-weight: 600; }
+.coverage .ratio.ok { color: var(--valid); }
+.coverage .ratio.bad { color: var(--alarm); }
+
+/* Panel de accion */
+.action-rail { display: flex; flex-direction: column; gap: 14px; align-self: start; }
+.attest-btn {
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  padding: 16px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 2px;
+}
+.attest-btn:hover:not(:disabled) { background: #2c3a4d; }
+.attest-btn:disabled { opacity: 0.55; cursor: progress; }
+
+.job-status {
+  border: 1px solid var(--rule);
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  min-height: 66px;
+}
+.job-status .phase { color: var(--ink); }
+.job-status .timer { font-family: var(--font-data); font-size: 20px; color: var(--sello); }
+.job-status .err { color: var(--alarm); }
+.job-status .txid { font-family: var(--font-data); font-size: 11px; word-break: break-all; }
+
+.action-note { font-size: 12px; color: var(--ink-soft); line-height: 1.55; }
+.action-note strong { color: var(--sello); }
