@@ -114,9 +114,14 @@ export async function connectEnku(onProgress: (msg: string) => void = () => {}) 
     };
   }
 
-  /** Ejecuta el attest: prueba ZK real contra el proof server. */
+  /** Ejecuta el attest: prueba ZK real contra el proof server.
+   *  `claimed` retrocede 60s respecto del reloj porque el tiempo de bloque
+   *  corre detras del wall-clock; la tolerancia cubre ese slack de sobra.
+   *  ENKU_NOW / ENKU_TOL permiten sondear unidades y casos de test. */
   async function attest(toleranceMs = 5 * 60 * 1000) {
-    const tx = await deployed.callTx.attest(BigInt(Date.now()), BigInt(toleranceMs));
+    const claimed = process.env.ENKU_NOW ? BigInt(process.env.ENKU_NOW) : BigInt(Date.now() - 60_000);
+    const tolerance = process.env.ENKU_TOL ? BigInt(process.env.ENKU_TOL) : BigInt(toleranceMs);
+    const tx = await deployed.callTx.attest(claimed, tolerance);
     return { txId: tx.public.txId as string, blockHeight: tx.public.blockHeight as number };
   }
 
