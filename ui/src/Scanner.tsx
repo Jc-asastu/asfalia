@@ -47,7 +47,7 @@ export function Scanner() {
         <h3>{t.scan_title}</h3>
         <p className="portal-lead">{t.scan_lead}</p>
 
-        <table className="scan-table">
+        <table className="scan-table" data-tour="scantable">
           <thead>
             <tr>
               <th>{t.scan_block}</th>

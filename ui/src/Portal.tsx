@@ -40,7 +40,7 @@ export function Portal({ accounts }: { accounts: { account: string; name: string
         <p className="portal-lead">{t.portal_lead}</p>
 
         <label className="portal-label" htmlFor="account">{t.account}</label>
-        <select id="account" value={selected} onChange={(e) => run(e.target.value)}>
+        <select id="account" data-tour="account" value={selected} onChange={(e) => run(e.target.value)}>
           <option value="">{t.choose_account}</option>
           {accounts.map((a) => (
             <option key={a.account} value={a.account}>

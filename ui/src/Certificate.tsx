@@ -70,7 +70,7 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
 
         <p className="declaration">{t.declaration}</p>
 
-        <div className="stamp-zone">
+        <div className="stamp-zone" data-tour="stamp">
           {!hasAttest ? (
             <span className="stamp none">{t.not_attested}</span>
           ) : (
@@ -81,7 +81,7 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
           {freshness === 'expired' && <span className="overstamp">{t.expired_stamp}</span>}
         </div>
 
-        <dl className="clauses">
+        <dl className="clauses" data-tour="roots">
           <div className="clause">
             <dt>{t.attested_at}</dt>
             <dd>
@@ -90,7 +90,7 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
                 : '—'}
             </dd>
           </div>
-          <div className="clause">
+          <div className="clause" data-tour="validity">
             <dt>{t.validity(mmss(windowSec))}</dt>
             <dd className={freshLabel[freshness][1]}>{freshLabel[freshness][0]}</dd>
           </div>
@@ -115,7 +115,7 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
 
         <div className="cert-foot">
           <span className="verified">{t.verified_line}</span>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px' }} data-tour="actions">
             <button
               className="reveal-btn"
               disabled={!hasAttest || (job?.running ?? false)}

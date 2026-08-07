@@ -83,7 +83,7 @@ export function History({ state, now }: { state: ServerState | null; now: number
           )}
         </div>
 
-        <div className="hist-grid" role="list">
+        <div className="hist-grid" role="list" data-tour="grid">
           {cells.map((c, i) => (
             <button
               key={i}
@@ -97,7 +97,7 @@ export function History({ state, now }: { state: ServerState | null; now: number
         </div>
 
         {chain?.data?.contractAction && (
-          <div className="chain-row">
+          <div className="chain-row" data-tour="chainrow">
             <span className="chain-label">{t.chain_label}</span>
             <span className="chain-data">
               {chain.data.contractAction.__typename} · tx{' '}

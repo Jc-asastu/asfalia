@@ -737,3 +737,114 @@ button { font: inherit; cursor: pointer; }
 }
 .landing-foot a { color: var(--gold); text-decoration: none; }
 .landing-foot a:hover { text-decoration: underline; }
+
+/* ── Tour guiado (patron Pulso, en oro) ────────────────────────────────── */
+
+.tour-replay {
+  position: fixed; right: 12px; bottom: 12px; z-index: 890;
+  border: 1px solid var(--gold-dim); background: var(--black-light);
+  color: var(--gold); font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: 0.14em; padding: 6px 11px;
+  border-radius: 2px; cursor: pointer;
+}
+.tour-replay:hover { border-color: var(--gold); box-shadow: 0 0 14px var(--gold-glow); }
+
+.tour-backdrop {
+  position: fixed; inset: 0; z-index: 900;
+  background: rgba(5, 5, 5, 0.82);
+  display: grid; place-items: center;
+}
+.tour-modal {
+  width: min(430px, calc(100vw - 32px));
+  background: var(--black-light);
+  border: 1px solid var(--gold-dim);
+  padding: 26px 28px;
+  box-shadow: 0 12px 60px rgba(0, 0, 0, 0.7), 0 0 40px var(--gold-glow);
+}
+.tour-wordmark {
+  font-family: var(--font-display); font-weight: 600; font-size: 21px;
+  letter-spacing: 0.28em; color: var(--gold); margin-bottom: 8px;
+}
+.tour-tagline { font-size: 13.5px; line-height: 1.65; color: var(--white); margin-bottom: 20px; }
+.tour-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.tour-primary { padding: 11px 20px; font-size: 11.5px; }
+.tour-caption { margin-top: 14px; font-size: 11px; color: var(--white-dim); letter-spacing: 0.08em; }
+
+.tour-layer { position: fixed; inset: 0; z-index: 900; }
+.tour-hole {
+  position: fixed;
+  border: 1px solid var(--gold);
+  border-radius: 3px;
+  box-shadow: 0 0 0 9999px rgba(5, 5, 5, 0.84), 0 0 30px var(--gold-glow-strong);
+  pointer-events: none;
+  transition: top 200ms ease-out, left 200ms ease-out, width 200ms ease-out, height 200ms ease-out;
+}
+.tour-card {
+  position: fixed; width: 330px; max-width: calc(100vw - 24px);
+  background: var(--black-light);
+  border: 1px solid var(--gold-dim);
+  padding: 18px 20px;
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8);
+  z-index: 901;
+}
+.tour-counter { font-size: 10px; letter-spacing: 0.2em; color: var(--gold-dim); }
+.tour-title {
+  font-family: var(--font-display); font-size: 16px; font-weight: 600;
+  color: var(--gold); margin-top: 6px; letter-spacing: 0.06em;
+}
+.tour-body { margin-top: 8px; font-size: 12.5px; line-height: 1.65; color: var(--white); }
+.tour-foot { margin-top: 16px; display: flex; justify-content: space-between; align-items: center; }
+.tour-text-btn {
+  background: none; border: none; color: var(--white-dim);
+  font-size: 11.5px; text-decoration: underline; cursor: pointer;
+}
+.tour-text-btn:hover { color: var(--white); }
+@media (prefers-reduced-motion: reduce) { .tour-hole { transition: none; } }
+
+/* ── Registro de entidades ─────────────────────────────────────────────── */
+
+.entities { max-width: 860px; margin: 0 auto; padding: 44px 30px 60px; }
+.entities-title {
+  font-family: var(--font-display); font-size: 26px; font-weight: 600;
+  color: var(--gold); text-align: center;
+}
+.entities-lead { text-align: center; color: var(--white-dim); font-size: 13.5px; margin-top: 10px; }
+.entity-list { margin-top: 30px; display: flex; flex-direction: column; gap: 12px; }
+.entity-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 18px;
+  background: var(--black-light);
+  border: 1px solid var(--gold-dim);
+  padding: 18px 22px;
+  text-align: left;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  flex-wrap: wrap;
+}
+.entity-row:not(.placeholder):hover, .entity-row.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 24px var(--gold-glow);
+  cursor: pointer;
+}
+.entity-row.placeholder { border-style: dashed; opacity: 0.55; }
+.entity-row-main { display: flex; flex-direction: column; gap: 4px; }
+.entity-name { font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--white); }
+.entity-name.dim { color: var(--white-dim); font-size: 14px; font-weight: 400; }
+.entity-contract { font-size: 11.5px; color: var(--gold-dim); }
+.entity-row-status { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.entity-fresh { font-size: 12px; }
+.entity-fresh.ok { color: var(--green); }
+.entity-fresh.bad { color: var(--red); }
+
+.subrole-ask { margin-top: 34px; }
+.subrole-q {
+  text-align: center; font-family: var(--font-display);
+  font-size: 18px; color: var(--gold); margin-bottom: 18px;
+}
+.subrole-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .subrole-btns { grid-template-columns: 1fr; } }
+
+/* CTA del hero + nota de entidad + banner de consola */
+.hero-cta { margin-top: 30px; padding: 15px 34px; font-size: 13px; }
+.entity-note { text-align: center; margin-top: 40px; padding: 0 30px; }
+.entity-note p { font-size: 12.5px; color: var(--white-dim); max-width: 68ch; margin: 0 auto; }
+.entity-note a { color: var(--gold); }
+.console-banner { max-width: none; margin: 0; border-left: none; border-right: none; }
