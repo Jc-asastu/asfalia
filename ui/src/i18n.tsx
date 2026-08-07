@@ -95,6 +95,8 @@ const STR = {
     hist_manual: 'manual',
     hist_duration: 'Proof time',
     hist_period: 'Period',
+    chain_label: 'Chain says (devnet indexer, first-hand):',
+    chain_block: 'block',
 
     // Portal
     portal_banner: 'Client view — sees only their own account and sibling hashes, never another balance',
@@ -202,6 +204,8 @@ const STR = {
     hist_manual: 'manual',
     hist_duration: 'Tiempo de prueba',
     hist_period: 'Período',
+    chain_label: 'La cadena dice (indexer de la devnet, primera mano):',
+    chain_block: 'bloque',
 
     portal_banner: 'Vista del cliente — solo ve su propia cuenta y hashes de hermanos, jamás otro saldo',
     portal_title: 'Verificación de inclusión',

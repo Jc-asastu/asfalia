@@ -558,3 +558,15 @@ button { font: inherit; cursor: pointer; }
 .hist-detail-verdict.ok-text { color: var(--green); }
 .hist-detail-verdict.bad-text { color: var(--red); }
 .hist-detail-verdict.gap-text { color: var(--gold); }
+
+/* La cadena, de primera mano */
+.chain-row {
+  margin-top: 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--black-lighter);
+  background: var(--black);
+  font-size: 12.5px;
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.chain-row .chain-label { color: var(--gold); }
+.chain-row .chain-data { color: var(--white); word-break: break-all; }

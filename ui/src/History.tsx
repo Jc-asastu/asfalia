@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getHistory, type HistoryResponse, type LogEntry, type ServerState } from './api';
+import { getChain, getHistory, type ChainAction, type HistoryResponse, type LogEntry, type ServerState } from './api';
 import { useI18n, dateLocale } from './i18n';
 
 type Cell = { kind: 'attest'; entry: LogEntry } | { kind: 'gap'; from: number; to: number };
@@ -10,10 +10,14 @@ type Cell = { kind: 'attest'; entry: LogEntry } | { kind: 'gap'; from: number; t
 export function History({ state, now }: { state: ServerState | null; now: number }) {
   const { t, lang } = useI18n();
   const [data, setData] = useState<HistoryResponse | null>(null);
+  const [chain, setChain] = useState<ChainAction | null>(null);
   const [selected, setSelected] = useState<Cell | null>(null);
 
   useEffect(() => {
-    const load = () => getHistory().then(setData).catch(() => {});
+    const load = () => {
+      getHistory().then(setData).catch(() => {});
+      getChain().then(setChain).catch(() => {});
+    };
     load();
     const i = setInterval(load, 5000);
     return () => clearInterval(i);
@@ -91,6 +95,18 @@ export function History({ state, now }: { state: ServerState | null; now: number
             />
           ))}
         </div>
+
+        {chain?.data?.contractAction && (
+          <div className="chain-row">
+            <span className="chain-label">{t.chain_label}</span>
+            <span className="chain-data">
+              {chain.data.contractAction.__typename} · tx{' '}
+              {chain.data.contractAction.transaction.hash.slice(0, 18)}… ·{' '}
+              {t.chain_block} {chain.data.contractAction.transaction.block.height} ·{' '}
+              {fmtTime(chain.data.contractAction.transaction.block.timestamp)}
+            </span>
+          </div>
+        )}
 
         <div className="hist-legend">
           <span><i className="sw ok" /> {t.solvent}</span>

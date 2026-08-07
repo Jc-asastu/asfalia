@@ -81,6 +81,18 @@ export const postSettle = () => fetch('/api/settle', { method: 'POST' }).then((r
 export const getHistory = (): Promise<HistoryResponse> =>
   fetch('/api/history').then((r) => r.json());
 
+export type ChainAction = {
+  data?: {
+    contractAction?: {
+      __typename: string;
+      transaction: { hash: string; block: { height: number; timestamp: number; hash: string } };
+    } | null;
+  };
+};
+
+export const getChain = (): Promise<ChainAction> =>
+  fetch('/api/chain').then((r) => r.json());
+
 export const getInclusion = (account: string): Promise<InclusionResponse> =>
   fetch(`/api/inclusion?account=${encodeURIComponent(account)}`).then((r) => r.json());
 
