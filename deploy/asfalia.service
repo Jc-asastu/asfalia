@@ -1,0 +1,30 @@
+# Asfalia — daemon de attestacion de la entidad.
+# 24/7: si el proceso muere se relanza solo (Restart=always); si se corta
+# la luz, arranca con la maquina (WantedBy=multi-user.target). El latido
+# no depende de que un humano se acuerde de nada.
+#
+# Instalacion: scripts/install-daemon.sh
+[Unit]
+Description=Asfalia entity daemon (solvency heartbeat)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/opt/asfalia
+# Produccion: latido diario, ventana de 30 dias (cadencia GENIUS Act)
+Environment=ASFALIA_HEARTBEAT_SEC=86400
+Environment=ASFALIA_VALIDITY=2592000
+Environment=PORT=3300
+ExecStartPre=/usr/bin/docker compose -f /opt/asfalia/docker-compose.yml up -d proof-server
+ExecStart=/usr/bin/npm run api
+Restart=always
+RestartSec=15
+# Los libros son sensibles: nada de core dumps ni escritura fuera del arbol
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/asfalia
+
+[Install]
+WantedBy=multi-user.target

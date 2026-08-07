@@ -42,9 +42,24 @@ That last line is the daily heartbeat with a 30-day validity window — the
 GENIUS Act cadence. Replace the books in `data/demo-entity.json` and
 `data/demo-users.json` with real exports (same shape).
 
+**Why a daemon and not a web page:** a page depends on someone keeping a tab
+open. The console is a **24/7 system service**: `deploy/asfalia.service` runs it
+under systemd with `Restart=always` (crash → relaunch in 15 s) and
+`WantedBy=multi-user.target` (power cut → it comes back with the machine). The
+heartbeat never depends on a human remembering anything — and a *gap* in the
+history can then only mean a deliberate unplug. Install with:
+
+```bash
+sudo bash scripts/install-daemon.sh
+```
+
+The local console UI lives at `http://localhost:3300/console` — reachable only
+from the entity's own machine, never linked from the public portal. The public
+portal carries no balance endpoint at all: the books have no web door.
+
 Product north star: `npx asfalia init` — one command that scaffolds the books,
-installs the toolchain and starts the heartbeat. The pieces already exist; the
-wrapper is packaging work.
+installs the toolchain and starts the heartbeat as a service. The pieces already
+exist; the wrapper is packaging work.
 
 ## 2 · Auditor page — the verifier (hosted anywhere)
 
