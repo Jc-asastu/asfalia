@@ -101,17 +101,21 @@ export function GuidedTour({
 
   useLayoutEffect(() => {
     if (phase !== 'steps' || !currentStep) { setHole(null); return; }
+    // La vista destino puede estar montando o esperando datos: reintentar
+    // hasta 6 segundos antes de rendirse.
     let tries = 0;
-    let raf = 0;
     const recompute = () => {
       const r = measure(currentStep.target);
-      if (r) setHole(r);
-      else if (tries++ < 30) raf = requestAnimationFrame(recompute); // la vista puede estar montando
-      else setHole(null);
+      if (r) { setHole(r); return true; }
+      return false;
     };
     recompute();
-    window.addEventListener('resize', recompute);
-    return () => { window.removeEventListener('resize', recompute); cancelAnimationFrame(raf); };
+    const iv = setInterval(() => {
+      if (recompute() || tries++ > 30) clearInterval(iv);
+    }, 200);
+    const onResize = () => recompute();
+    window.addEventListener('resize', onResize);
+    return () => { window.removeEventListener('resize', onResize); clearInterval(iv); };
   }, [phase, currentStep, stepIndex]);
 
   useEffect(() => {
