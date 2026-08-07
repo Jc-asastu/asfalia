@@ -468,3 +468,27 @@ button { font: inherit; cursor: pointer; }
   font-size: 12px; color: var(--gold);
   margin-right: 6px;
 }
+
+/* ── Pantallas bajas (notebooks 768-800px): todo entra, nada se corta ─── */
+
+@media (max-height: 850px) {
+  .masthead { padding: 10px 22px 8px; }
+  .masthead h1 { font-size: 20px; }
+  .masthead h1 small { font-size: 11px; margin-top: 2px; }
+  .tabs { padding: 8px 22px 0; }
+  .tabs button { padding: 4px 2px 7px; }
+  .tabpanel { padding: 18px 22px 40px; }
+  .private-banner { margin-bottom: 14px; padding: 7px 14px; }
+  .certificate { padding: 26px 36px 24px; }
+  .cert-head h2 { font-size: 24px; margin-top: 4px; }
+  .declaration { margin-top: 14px; font-size: 15px; }
+  .stamp-zone { padding: 20px 0 6px; }
+  .stamp { font-size: 26px; padding: 9px 28px 7px; }
+  .overstamp { font-size: 32px; }
+  .clauses { margin-top: 16px; }
+  .clause { padding: 7px 2px; }
+  .cert-foot { margin-top: 16px; }
+  .ledger-block td { padding: 5px 2px; }
+  .ledger-block .acct { display: block; }
+  .portal-card { padding: 22px 30px 20px; }
+}
