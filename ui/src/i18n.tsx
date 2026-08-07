@@ -78,7 +78,7 @@ const STR = {
     settle_tx: 'tx',
 
     // History
-    tab_history: 'Ledger · history',
+    tab_history: 'History · heartbeat',
     hist_banner: 'Emission history — every certificate points to its on-chain transaction; a gap means the entity chose not to prove',
     hist_title: 'Certificate heartbeat',
     hist_beating: (s: number) => `emitting every ${s}s`,
