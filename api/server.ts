@@ -195,6 +195,26 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     return json(res, 200, { heartbeatSec: HEARTBEAT_SEC || null, entries: history });
   }
 
+  if (req.method === 'GET' && url.pathname === '/api/chain') {
+    // La cadena, de primera mano: la ultima accion sobre el contrato segun el
+    // INDEXER de la devnet (no nuestro log). Para auditar que el log no miente.
+    const { resolveNetwork } = await import('../src/network');
+    const { config } = resolveNetwork();
+    const q = {
+      query: `{ contractAction(address: "${conn.deployment.address}") {
+        __typename address
+        transaction { hash block { height timestamp hash } }
+      } }`,
+    };
+    const r = await fetch(config.indexer, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(q),
+      signal: AbortSignal.timeout(8000),
+    });
+    return json(res, 200, await r.json());
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/book') {
     // Solo la entidad ve esto: el server corre en SU maquina. El auditor
     // accede al certificado, que no contiene un solo numero.
