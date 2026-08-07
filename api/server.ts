@@ -196,11 +196,20 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   }
 
   if (req.method === 'GET' && url.pathname === '/api/chain') {
-    // La cadena, de primera mano: la ultima accion sobre el contrato segun el
-    // INDEXER de la devnet (no nuestro log). Para auditar que el log no miente.
+    // La cadena, de primera mano, segun el INDEXER de la devnet (no nuestro
+    // log). Sin parametros: la ultima accion del contrato. Con ?tx=<id>:
+    // busca esa transaccion por su identifier (el txId que muestra la UI).
     const { resolveNetwork } = await import('../src/network');
     const { config } = resolveNetwork();
-    const q = {
+    const txId = url.searchParams.get('tx');
+    const q = txId
+      ? {
+          query: `{ transactions(offset: {identifier: "${txId.replace(/[^0-9a-fA-F]/g, '')}"}) {
+            hash block { height timestamp hash }
+            contractActions { __typename address }
+          } }`,
+        }
+      : {
       query: `{ contractAction(address: "${conn.deployment.address}") {
         __typename address
         transaction { hash block { height timestamp hash } }
