@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { fmtCents, getBook, postAttest, putBook, type Book, type ServerState } from './api';
 
-/** Back-office de la entidad. Este libro vive SOLO en esta maquina:
- *  el server que lo sirve es local. A la cadena viaja la prueba. */
+/** Back-office de la entidad. Estos libros viven SOLO en esta maquina:
+ *  el server que los sirve es local. A la cadena viaja la prueba. */
 export function Treasury({ state }: { state: ServerState | null }) {
   const [book, setBook] = useState<Book | null>(null);
-  const [editing, setEditing] = useState<{ side: 'assets' | 'liabilities'; index: number } | null>(null);
+  const [editing, setEditing] = useState<{ side: 'assets' | 'clients'; index: number } | null>(null);
   const [draft, setDraft] = useState('');
   const [elapsed, setElapsed] = useState(0);
 
@@ -18,84 +18,98 @@ export function Treasury({ state }: { state: ServerState | null }) {
     return () => clearInterval(t);
   }, [job?.running, job?.startedAt]);
 
-  if (!book) return <p>Cargando libro…</p>;
+  if (!book) return <p>Cargando libros…</p>;
 
   const sum = (xs: { cents: string }[]) => xs.reduce((a, x) => a + BigInt(x.cents), 0n);
   const totalA = sum(book.assets);
-  const totalL = sum(book.liabilities);
+  const totalL = sum(book.users);
   const covered = totalA >= totalL;
   const ratio = totalL > 0n ? Number((totalA * 10000n) / totalL) / 100 : 0;
 
-  const startEdit = (side: 'assets' | 'liabilities', index: number, cents: string) => {
+  const startEdit = (side: 'assets' | 'clients', index: number, cents: string) => {
     setEditing({ side, index });
     setDraft((BigInt(cents) / 100n).toString());
   };
   const commitEdit = async () => {
     if (!editing || !/^\d+$/.test(draft)) return setEditing(null);
-    const cents = `${draft}00`;
-    const r = await putBook(editing.side, editing.index, cents);
+    const r = await putBook(editing.side, editing.index, `${draft}00`);
     if (r.book) setBook(r.book);
     setEditing(null);
   };
 
-  const Ledger = ({ side, title, items }: { side: 'assets' | 'liabilities'; title: string; items: Book['assets'] }) => (
-    <section className="ledger-block">
-      <h3>{title}</h3>
-      <table>
-        <tbody>
-          {items.map((it, i) => (
-            <tr key={it.label}>
-              <td>{it.label}</td>
-              <td className="amount">
-                {editing?.side === side && editing.index === i ? (
-                  <input
-                    autoFocus
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onBlur={commitEdit}
-                    onKeyDown={(e) => e.key === 'Enter' && commitEdit()}
-                    aria-label={`Editar ${it.label} (USD, sin centavos)`}
-                  />
-                ) : (
-                  <button onClick={() => startEdit(side, i, it.cents)} title="Editar importe">
-                    {fmtCents(it.cents)}
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-          <tr className="total">
-            <td>Total</td>
-            <td className="amount">{fmtCents(sum(items).toString())}</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-  );
+  const amountCell = (side: 'assets' | 'clients', i: number, cents: string, label: string) =>
+    editing?.side === side && editing.index === i ? (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commitEdit}
+        onKeyDown={(e) => e.key === 'Enter' && commitEdit()}
+        aria-label={`Editar ${label} (USD, sin centavos)`}
+      />
+    ) : (
+      <button onClick={() => startEdit(side, i, cents)} title="Editar importe">
+        {fmtCents(cents)}
+      </button>
+    );
 
   return (
     <>
       <div className="private-banner">
         <span aria-hidden="true">◆</span>
-        Libro privado — este documento vive únicamente en la máquina de la entidad
+        Libros privados — viven únicamente en la máquina de la entidad
       </div>
 
       <div className="treasury">
-        <div>
-          <div className="ledger-tables">
-            <Ledger side="assets" title="Activos" items={book.assets} />
-            <Ledger side="liabilities" title="Pasivos" items={book.liabilities} />
-            <div className="coverage">
-              <span>
-                Cobertura de pasivos:{' '}
-                <span className={`ratio ${covered ? 'ok' : 'bad'}`}>{ratio.toFixed(2)}%</span>
+        <div className="ledger-tables">
+          <section className="ledger-block">
+            <h3>Activos</h3>
+            <table>
+              <tbody>
+                {book.assets.map((it, i) => (
+                  <tr key={it.label}>
+                    <td>{it.label}</td>
+                    <td className="amount">{amountCell('assets', i, it.cents, it.label)}</td>
+                  </tr>
+                ))}
+                <tr className="total">
+                  <td>Total</td>
+                  <td className="amount">{fmtCents(totalA.toString())}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section className="ledger-block">
+            <h3>Pasivos — cuentas de clientes ({book.users.length})</h3>
+            <table>
+              <tbody>
+                {book.users.map((u, i) => (
+                  <tr key={u.account}>
+                    <td>
+                      <span className="acct">{u.account}</span> {u.name}
+                    </td>
+                    <td className="amount">{amountCell('clients', i, u.cents, u.account)}</td>
+                  </tr>
+                ))}
+                <tr className="total">
+                  <td>Total</td>
+                  <td className="amount">{fmtCents(totalL.toString())}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <div className="coverage">
+            <span>
+              Cobertura de pasivos:{' '}
+              <span className={`ratio ${covered ? 'ok' : 'bad'}`}>{ratio.toFixed(2)}%</span>
+            </span>
+            <span>
+              Posición: <span className={`ratio ${covered ? 'ok' : 'bad'}`}>
+                {covered ? 'cubierta' : 'descubierta'}
               </span>
-              <span>
-                Posición: <span className={`ratio ${covered ? 'ok' : 'bad'}`}>
-                  {covered ? 'cubierta' : 'descubierta'}
-                </span>
-              </span>
-            </div>
+            </span>
           </div>
         </div>
 
@@ -105,7 +119,7 @@ export function Treasury({ state }: { state: ServerState | null }) {
             disabled={job?.running ?? false}
             onClick={() => postAttest()}
           >
-            {job?.running ? 'Generando prueba…' : 'Generar attestación'}
+            {job?.running && job.kind === 'attest' ? 'Generando prueba…' : 'Generar attestación'}
           </button>
 
           <div className="job-status" aria-live="polite">
@@ -115,7 +129,7 @@ export function Treasury({ state }: { state: ServerState | null }) {
                 <div className="phase">{job.phase}</div>
               </>
             ) : job?.error ? (
-              <div className="err">{job.error}</div>
+              <div className="err">{job.phase}: {job.error.slice(0, 120)}</div>
             ) : job?.txId ? (
               <>
                 <div className="phase">
@@ -129,9 +143,11 @@ export function Treasury({ state }: { state: ServerState | null }) {
           </div>
 
           <p className="action-note">
-            La attestación genera una <strong>prueba de conocimiento cero</strong> sobre
-            este libro y publica únicamente el veredicto, el momento y un compromiso
-            criptográfico. Los importes no participan de ninguna transmisión.
+            La attestación genera una <strong>prueba de conocimiento cero</strong> sobre estos
+            libros y publica únicamente el veredicto, los tiempos, el compromiso de activos y
+            la <strong>raíz Merkle</strong> de las cuentas. Los importes no participan de
+            ninguna transmisión — y ningún cliente puede quedar afuera del árbol sin que su
+            verificación falle.
           </p>
         </aside>
       </div>

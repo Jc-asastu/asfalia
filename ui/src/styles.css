@@ -377,3 +377,43 @@ button { font: inherit; cursor: pointer; }
 .settle-strip .accepted { color: var(--valid); }
 .settle-strip .rejected { color: var(--alarm); }
 .reveal-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Portal del cliente ────────────────────────────────────────────────── */
+
+.portal { max-width: 730px; margin: 0 auto; }
+.portal-card {
+  border: 1px solid var(--ink);
+  background: #f2f4ea;
+  padding: 32px 40px 28px;
+}
+.portal-card h3 { font-family: var(--font-display); font-size: 22px; font-weight: 600; }
+.portal-lead { margin-top: 8px; color: var(--ink-soft); font-size: 14px; max-width: 56ch; }
+.portal-label {
+  display: block; margin-top: 20px; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft);
+}
+.portal-card select {
+  margin-top: 6px; width: 100%; max-width: 420px;
+  font: inherit; padding: 8px 10px;
+  border: 1px solid var(--ink); background: #fff; border-radius: 2px;
+}
+.portal-busy { margin-top: 16px; color: var(--sello); font-size: 13px; }
+.portal-result { margin-top: 22px; border: 1px solid var(--rule); padding: 18px 20px; }
+.portal-result.ok { border-color: var(--valid); }
+.portal-result.bad { border-color: var(--alarm); }
+.portal-verdict { font-weight: 700; font-size: 15px; }
+.portal-result.ok .portal-verdict { color: var(--valid); }
+.portal-result.bad .portal-verdict { color: var(--alarm); }
+.portal-detail { margin-top: 14px; }
+.portal-detail > div {
+  display: flex; justify-content: space-between; gap: 14px;
+  padding: 6px 0; border-bottom: 1px solid var(--rule); font-size: 13px;
+}
+.portal-detail dt { color: var(--ink-soft); }
+.portal-detail dd { font-family: var(--font-data); word-break: break-all; text-align: right; }
+.portal-note { margin-top: 12px; font-size: 12.5px; color: var(--ink-soft); max-width: 58ch; }
+
+.ledger-block .acct {
+  font-family: var(--font-data); font-size: 11.5px; color: var(--sello);
+  margin-right: 6px;
+}

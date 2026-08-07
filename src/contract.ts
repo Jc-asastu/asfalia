@@ -17,7 +17,7 @@ import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-j
 import { resolveNetwork, getOrCreateWallet, getDeployment } from './network';
 import { createWallet, persistWalletState, type WalletContext } from './wallet';
 import { witnesses } from './witnesses';
-import { loadEntityBook, toPrivateState } from './entity-data';
+import { loadEntityBook, loadUsers, toPrivateState } from './entity-data';
 
 // @ts-expect-error Required for wallet sync
 globalThis.WebSocket = WebSocket;
@@ -99,7 +99,7 @@ export async function connectEnku(onProgress: (msg: string) => void = () => {}) 
     compiledContract: compiled as any,
     contractAddress: deployment.address,
     privateStateId: PRIVATE_STATE_ID,
-    initialPrivateState: toPrivateState(loadEntityBook()),
+    initialPrivateState: toPrivateState(loadEntityBook(), loadUsers()),
   });
 
   /** Estado publico del contrato: veredicto + attestedAt + commitment. Nada mas existe. */
@@ -111,7 +111,8 @@ export async function connectEnku(onProgress: (msg: string) => void = () => {}) 
       verdict: l.verdict as boolean,
       attestedAt: l.attestedAt as bigint,
       validUntil: l.validUntil as bigint,
-      balancesCommitment: Buffer.from(l.balancesCommitment).toString('hex') as string,
+      assetsCommitment: Buffer.from(l.assetsCommitment).toString('hex') as string,
+      liabilitiesRoot: Buffer.from(l.liabilitiesRoot).toString('hex') as string,
     };
   }
 

@@ -4,7 +4,8 @@ export type LedgerState = {
   verdict: boolean;
   attestedAt: string; // epoch segundos (bigint serializado)
   validUntil: string; // epoch segundos — la cadena rechaza settlement despues de esto
-  balancesCommitment: string;
+  assetsCommitment: string;
+  liabilitiesRoot: string; // raiz Merkle de las cuentas de clientes
 } | null;
 
 export type AttestJob = {
@@ -28,10 +29,20 @@ export type ServerState = {
 };
 
 export type BookItem = { label: string; cents: string };
+export type BookUser = { account: string; name: string; cents: string };
 export type Book = {
   entity: string;
   assets: BookItem[];
-  liabilities: BookItem[];
+  users: BookUser[];
+};
+
+export type InclusionResponse = {
+  account: string;
+  name: string;
+  cents: string;
+  leafHex: string;
+  path: { siblingHex: string; siblingSide: 'left' | 'right' }[];
+  rootHex: string;
 };
 
 export const getState = (): Promise<ServerState> =>
@@ -39,7 +50,7 @@ export const getState = (): Promise<ServerState> =>
 
 export const getBook = (): Promise<Book> => fetch('/api/book').then((r) => r.json());
 
-export const putBook = (side: 'assets' | 'liabilities', index: number, cents: string) =>
+export const putBook = (side: 'assets' | 'clients', index: number, cents: string) =>
   fetch('/api/book', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
@@ -49,6 +60,16 @@ export const putBook = (side: 'assets' | 'liabilities', index: number, cents: st
 export const postAttest = () => fetch('/api/attest', { method: 'POST' }).then((r) => r.json());
 
 export const postSettle = () => fetch('/api/settle', { method: 'POST' }).then((r) => r.json());
+
+export const getInclusion = (account: string): Promise<InclusionResponse> =>
+  fetch(`/api/inclusion?account=${encodeURIComponent(account)}`).then((r) => r.json());
+
+export const postVerifyInclusion = (leafHex: string, path: InclusionResponse['path']) =>
+  fetch('/api/verify-inclusion', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ leafHex, path }),
+  }).then((r) => r.json());
 
 /** Centavos -> "1.824.500.000,00" (es-AR). */
 export const fmtCents = (cents: string) => {

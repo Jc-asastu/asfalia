@@ -90,8 +90,12 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
             <dd className={freshLabel[freshness][1]}>{freshLabel[freshness][0]}</dd>
           </div>
           <div className="clause">
-            <dt>Compromiso sobre los libros</dt>
-            <dd>{ledger ? `${ledger.balancesCommitment.slice(0, 34)}…` : '—'}</dd>
+            <dt>Compromiso sobre activos</dt>
+            <dd>{ledger ? `${ledger.assetsCommitment.slice(0, 34)}…` : '—'}</dd>
+          </div>
+          <div className="clause">
+            <dt>Raíz Merkle de pasivos (cuentas)</dt>
+            <dd>{ledger ? `${ledger.liabilitiesRoot.slice(0, 34)}…` : '—'}</dd>
           </div>
           <div className="clause">
             <dt>Última transacción</dt>

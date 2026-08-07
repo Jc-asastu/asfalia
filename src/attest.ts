@@ -22,7 +22,8 @@ const ledger = await conn.readLedger();
 console.log('\n  ── Estado publico on-chain ──────────────────────────');
 console.log(`  Veredicto:   ${ledger?.verdict ? 'SOLVENTE' : 'NO SOLVENTE'}`);
 console.log(`  Attest:      ${new Date(Number(ledger?.attestedAt) * 1000).toISOString()}`);
-console.log(`  Commitment:  ${ledger?.balancesCommitment.slice(0, 32)}…`);
+console.log(`  Assets commit:    ${ledger?.assetsCommitment.slice(0, 32)}…`);
+console.log(`  Liabilities root: ${ledger?.liabilitiesRoot.slice(0, 32)}…`);
 console.log(`  Tx:          ${txId} (block ${blockHeight})`);
 console.log(`\n  Total: ${((Date.now() - t0) / 1000).toFixed(1)}s\n`);
 

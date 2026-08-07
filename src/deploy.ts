@@ -24,7 +24,7 @@ import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-j
 globalThis.WebSocket = WebSocket;
 
 import { witnesses } from './witnesses';
-import { loadEntityBook, toPrivateState } from './entity-data';
+import { loadEntityBook, loadUsers, toPrivateState } from './entity-data';
 
 // Identifier under which this contract's private state is stored.
 // For enku this holds the entity's balances + commitment nonce (local only).
@@ -298,7 +298,7 @@ async function main() {
         compiledContract: compiledContract as any,
         args: [],
         privateStateId: PRIVATE_STATE_ID,
-        initialPrivateState: toPrivateState(loadEntityBook()),
+        initialPrivateState: toPrivateState(loadEntityBook(), loadUsers()),
       });
       break;
     } catch (err: any) {
