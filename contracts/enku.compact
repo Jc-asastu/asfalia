@@ -14,9 +14,9 @@ import CompactStandardLibrary;
 // SOLVENTE (true) / NO SOLVENTE (false). Lo unico que el auditor ve del balance.
 export ledger verdict: Boolean;
 
-// Momento del attest (epoch millis), validado contra el tiempo de bloque:
-// el circuito exige que el valor declarado este dentro de una ventana alrededor
-// del tiempo real del bloque, asi no se puede antedatar ni posdatar.
+// Momento del attest (epoch SEGUNDOS — el tiempo de bloque va en segundos),
+// validado contra el bloque: el circuito exige que el valor declarado caiga
+// en una ventana alrededor del tiempo real, sin antedatar ni posdatar.
 export ledger attestedAt: Uint<64>;
 
 // Commitment de los balances + nonce. Ata la prueba a los numeros reales:
@@ -37,7 +37,7 @@ witness commitmentNonce(): Bytes<32>;
 
 // `now` lo declara el prover, pero el circuito lo valida contra el tiempo de
 // bloque real: debe cumplirse  now <= blockTime < now + tolerance.
-// tolerance en millis (p. ej. 60_000 = 1 minuto).
+// tolerance en segundos (p. ej. 300 = 5 minutos).
 export circuit attest(now: Uint<64>, tolerance: Uint<32>): [] {
   const assets = assetBalances();
   const liabilities = liabilityBalances();
