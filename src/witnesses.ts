@@ -2,7 +2,7 @@
 // Vive en la maquina del prover. Jamas toca el ledger, los logs ni la UI.
 
 import type { WitnessContext } from "@midnight-ntwrk/midnight-js-protocol/compact-runtime";
-import type { Ledger } from "../contracts/managed/enku/contract/index.js";
+
 
 export type EnkuPrivateState = {
   readonly assets: bigint[]; // 8 items, centavos
@@ -10,7 +10,9 @@ export type EnkuPrivateState = {
   readonly nonce: Uint8Array; // 32 bytes aleatorios
 };
 
-type WC = WitnessContext<Ledger, EnkuPrivateState>;
+// Ledger se tipa unknown: managed/ se genera al compilar (en el Codespace) y
+// los witnesses no leen el ledger — solo devuelven estado privado.
+type WC = WitnessContext<unknown, EnkuPrivateState>;
 
 export const witnesses = {
   assetBalances: ({ privateState }: WC): [EnkuPrivateState, bigint[]] => [

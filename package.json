@@ -10,7 +10,7 @@
     "build": "npx tsc --noEmit || true",
     "setup": "npx tsx src/setup.ts",
     "deploy": "npx tsx src/deploy.ts",
-    "cli": "npx tsx src/cli.ts",
+    "attest": "npx tsx src/attest.ts",
     "check-balance": "npx tsx src/check-balance.ts",
     "network": "npx tsx src/network.ts",
     "proof-server:start": "docker compose up -d",

@@ -1,0 +1,25 @@
+{
+  "_comment": "Datos DEMO estaticos, modelados sobre la estructura de un PoR publico de exchange (custodia fria/caliente por activo vs pasivos con clientes). Valores en centavos de USD. Nunca un feed en vivo: los libros viven en la maquina del que prueba.",
+  "entity": "Austral Exchange S.A.",
+  "assets": [
+    { "label": "BTC cold storage",        "cents": "182450000000" },
+    { "label": "BTC hot wallet",          "cents": "12300000000" },
+    { "label": "ETH cold storage",        "cents": "64120000000" },
+    { "label": "ETH hot wallet",          "cents": "5480000000" },
+    { "label": "USDC reserve",            "cents": "38900000000" },
+    { "label": "USDT reserve",            "cents": "21750000000" },
+    { "label": "ARS fiat (custodian)",    "cents": "9800000000" },
+    { "label": "USD fiat (custodian)",    "cents": "15600000000" }
+  ],
+  "liabilities": [
+    { "label": "Client BTC balances",     "cents": "175200000000" },
+    { "label": "Client ETH balances",     "cents": "61400000000" },
+    { "label": "Client USDC balances",    "cents": "36200000000" },
+    { "label": "Client USDT balances",    "cents": "19800000000" },
+    { "label": "Client ARS balances",     "cents": "8900000000" },
+    { "label": "Client USD balances",     "cents": "14100000000" },
+    { "label": "Pending withdrawals",     "cents": "2350000000" },
+    { "label": "Fees payable",            "cents": "410000000" }
+  ],
+  "nonceHex": "9f3c71a04be82d5677c1049a3d2ee8b1520cf6ad0e934b7d8a165c30f2d94e08"
+}

@@ -23,9 +23,12 @@ import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-j
 // @ts-expect-error Required for wallet sync
 globalThis.WebSocket = WebSocket;
 
-// Identifier under which this contract's private state is stored. The
-// hello-world contract has no witnesses, so its private state is empty ({}).
-const PRIVATE_STATE_ID = 'helloWorldPrivateState';
+import { witnesses } from './witnesses';
+import { loadEntityBook, toPrivateState } from './entity-data';
+
+// Identifier under which this contract's private state is stored.
+// For enku this holds the entity's balances + commitment nonce (local only).
+const PRIVATE_STATE_ID = 'enkuPrivateState';
 
 // ─── Network configuration ─────────────────────────────────────────────────────
 //
@@ -71,7 +74,7 @@ async function waitForProofServer(maxAttempts = 60, delayMs = 2000): Promise<boo
 // ─── Compiled contract loading ─────────────────────────────────────────────────
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const zkConfigPath = path.resolve(__dirname, '..', 'contracts', 'managed', 'hello-world');
+const zkConfigPath = path.resolve(__dirname, '..', 'contracts', 'managed', 'enku');
 const contractPath = path.join(zkConfigPath, 'contract', 'index.js');
 
 if (!fs.existsSync(contractPath)) {
@@ -79,11 +82,11 @@ if (!fs.existsSync(contractPath)) {
   process.exit(1);
 }
 
-const HelloWorld = await import(pathToFileURL(contractPath).href);
+const Enku = await import(pathToFileURL(contractPath).href);
 
-const compiledContract = CompiledContract.make('hello-world', HelloWorld.Contract).pipe(
-  CompiledContract.withVacantWitnesses,
-  CompiledContract.withCompiledFileAssets(zkConfigPath),
+const compiledContract = CompiledContract.make('enku', Enku.Contract).pipe(
+  (CompiledContract.withWitnesses as any)(witnesses),
+  (CompiledContract.withCompiledFileAssets as any)(zkConfigPath),
 );
 
 // ─── Providers ─────────────────────────────────────────────────────────────────
@@ -117,7 +120,7 @@ async function createProviders(walletCtx: WalletContext) {
 
   return {
     privateStateProvider: levelPrivateStateProvider({
-      privateStateStoreName: 'hello-world-state',
+      privateStateStoreName: 'enku-state',
       accountId,
       privateStoragePasswordProvider: () => privateStatePassword,
     }),
@@ -289,16 +292,13 @@ async function main() {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       // Midnight.js 4.1.x supplies private state via privateStateId +
-      // initialPrivateState (empty here — the hello-world contract has no
-      // witnesses). args is the contract constructor's arguments: empty for
-      // hello-world's no-arg constructor. (Statically-typed contracts can omit
-      // args entirely; this script loads the contract dynamically, so the
-      // conditional args type widens to any[] and an explicit [] is required.)
+      // initialPrivateState: los balances de la entidad + nonce, que quedan
+      // SOLO en el store local (level). args vacio: enku no tiene constructor.
       deployed = await deployContract(providers, {
         compiledContract: compiledContract as any,
         args: [],
         privateStateId: PRIVATE_STATE_ID,
-        initialPrivateState: {},
+        initialPrivateState: toPrivateState(loadEntityBook()),
       });
       break;
     } catch (err: any) {
