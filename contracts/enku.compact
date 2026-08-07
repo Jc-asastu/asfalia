@@ -1,0 +1,67 @@
+pragma language_version >= 0.23;
+
+import CompactStandardLibrary;
+
+// ============================================================================
+// Enku — proof of solvency that expires.
+//
+// Estado publico (ledger): veredicto, momento del attest, commitment.
+// Estado privado (witnesses): los balances. Nunca cruzan esta linea.
+// ============================================================================
+
+// --- Estado publico -----------------------------------------------------------
+
+// SOLVENTE (true) / NO SOLVENTE (false). Lo unico que el auditor ve del balance.
+export ledger verdict: Boolean;
+
+// Momento del attest (epoch millis), validado contra el tiempo de bloque:
+// el circuito exige que el valor declarado este dentro de una ventana alrededor
+// del tiempo real del bloque, asi no se puede antedatar ni posdatar.
+export ledger attestedAt: Uint<64>;
+
+// Commitment de los balances + nonce. Ata la prueba a los numeros reales:
+// el circuito nunca confia en un valor crudo del prover.
+export ledger balancesCommitment: Bytes<32>;
+
+// --- Estado privado (witnesses, viven en la maquina del prover) ---------------
+
+// 8 activos y 8 pasivos, en centavos. El JSON de demo los provee.
+witness assetBalances(): Vector<8, Uint<64>>;
+witness liabilityBalances(): Vector<8, Uint<64>>;
+
+// Nonce del commitment: 32 bytes aleatorios que guarda el prover.
+// Sin nonce, un commitment de balances chicos se ataca por fuerza bruta.
+witness commitmentNonce(): Bytes<32>;
+
+// --- Circuito principal -------------------------------------------------------
+
+// `now` lo declara el prover, pero el circuito lo valida contra el tiempo de
+// bloque real: debe cumplirse  now <= blockTime < now + tolerance.
+// tolerance en millis (p. ej. 60_000 = 1 minuto).
+export circuit attest(now: Uint<64>, tolerance: Uint<32>): [] {
+  const assets = assetBalances();
+  const liabilities = liabilityBalances();
+  const nonce = commitmentNonce();
+
+  // Suma adentro del circuito: la garantia cubre la lista completa,
+  // no un agregado que el prover podria fabricar.
+  // Acumulador Uint<68>: 8 sumandos de 64 bits caben en 67, el cast nunca falla.
+  const totalAssets = fold((acc, x) => (acc + x) as Uint<68>, 0 as Uint<68>, assets);
+  const totalLiabilities = fold((acc, x) => (acc + x) as Uint<68>, 0 as Uint<68>, liabilities);
+
+  // El commitment ata la prueba a estos numeros exactos.
+  balancesCommitment = disclose(
+    persistentCommit<Vector<2, Vector<8, Uint<64>>>>(
+      [assets, liabilities],
+      nonce
+    )
+  );
+
+  // Validacion temporal: el `now` declarado tiene que estar pegado al bloque.
+  const claimed = disclose(now);
+  assert(blockTimeGte(claimed), "attest timestamp is in the future");
+  assert(blockTimeLt(claimed + disclose(tolerance) as Uint<64>), "attest timestamp is stale");
+
+  attestedAt = claimed;
+  verdict = disclose(totalAssets >= totalLiabilities);
+}
