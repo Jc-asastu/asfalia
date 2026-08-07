@@ -1,5 +1,5 @@
 /**
- * Conexion compartida al contrato Enku: providers + contrato deployado.
+ * Conexion compartida al contrato Asfalia: providers + contrato deployado.
  * La usan el CLI y la API del dashboard — una sola definicion, cero copias.
  */
 import * as fs from 'node:fs';
@@ -22,22 +22,22 @@ import { loadEntityBook, loadUsers, toPrivateState } from './entity-data';
 // @ts-expect-error Required for wallet sync
 globalThis.WebSocket = WebSocket;
 
-export const PRIVATE_STATE_ID = 'enkuPrivateState';
+export const PRIVATE_STATE_ID = 'asfaliaPrivateState';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const zkConfigPath = path.resolve(__dirname, '..', 'contracts', 'managed', 'enku');
+export const zkConfigPath = path.resolve(__dirname, '..', 'contracts', 'managed', 'asfalia');
 
 export async function loadCompiledContract() {
   const contractPath = path.join(zkConfigPath, 'contract', 'index.js');
   if (!fs.existsSync(contractPath)) {
     throw new Error('Contract not compiled! Run: npm run compile');
   }
-  const Enku = await import(pathToFileURL(contractPath).href);
-  const compiled = CompiledContract.make('enku', Enku.Contract).pipe(
+  const Asfalia = await import(pathToFileURL(contractPath).href);
+  const compiled = CompiledContract.make('asfalia', Asfalia.Contract).pipe(
     (CompiledContract.withWitnesses as any)(witnesses),
     (CompiledContract.withCompiledFileAssets as any)(zkConfigPath),
   );
-  return { Enku, compiled };
+  return { Asfalia, compiled };
 }
 
 export function createProviders(walletCtx: WalletContext, networkConfig: any) {
@@ -63,7 +63,7 @@ export function createProviders(walletCtx: WalletContext, networkConfig: any) {
 
   return {
     privateStateProvider: levelPrivateStateProvider({
-      privateStateStoreName: 'enku-state',
+      privateStateStoreName: 'asfalia-state',
       accountId,
       privateStoragePasswordProvider: () => privateStatePassword,
     }),
@@ -75,17 +75,17 @@ export function createProviders(walletCtx: WalletContext, networkConfig: any) {
   };
 }
 
-export type EnkuConnection = Awaited<ReturnType<typeof connectEnku>>;
+export type AsfaliaConnection = Awaited<ReturnType<typeof connectAsfalia>>;
 
 /** Conecta wallet + providers + contrato deployado. Una llamada, todo listo. */
-export async function connectEnku(onProgress: (msg: string) => void = () => {}) {
+export async function connectAsfalia(onProgress: (msg: string) => void = () => {}) {
   const { network, config: networkConfig } = resolveNetwork();
   const deployment = getDeployment(network);
   if (!deployment) {
     throw new Error(`No deploy on file for network ${network}. Run: npm run setup`);
   }
 
-  const { Enku, compiled } = await loadCompiledContract();
+  const { Asfalia, compiled } = await loadCompiledContract();
 
   onProgress('connecting wallet');
   const walletCtx = await createWallet({ network, networkConfig, seed: getOrCreateWallet(network).seed });
@@ -106,7 +106,7 @@ export async function connectEnku(onProgress: (msg: string) => void = () => {}) 
   async function readLedger() {
     const contractState = await providers.publicDataProvider.queryContractState(deployment!.address);
     if (!contractState) return null;
-    const l = Enku.ledger(contractState.data);
+    const l = Asfalia.ledger(contractState.data);
     return {
       verdict: l.verdict as boolean,
       attestedAt: l.attestedAt as bigint,
@@ -120,15 +120,15 @@ export async function connectEnku(onProgress: (msg: string) => void = () => {}) 
    *  El tiempo de bloque va en SEGUNDOS epoch (verificado en el log del nodo:
    *  tblock=Timestamp(1786118610)). `claimed` retrocede 30s porque el bloque
    *  corre detras del wall-clock; la tolerancia (default 5 min) cubre el slack.
-   *  ENKU_NOW / ENKU_TOL (segundos) para tests y sondeos. */
+   *  ASFALIA_NOW / ASFALIA_TOL (segundos) para tests y sondeos. */
   async function attest(toleranceSec = 5 * 60) {
-    const claimed = process.env.ENKU_NOW
-      ? BigInt(process.env.ENKU_NOW)
+    const claimed = process.env.ASFALIA_NOW
+      ? BigInt(process.env.ASFALIA_NOW)
       : BigInt(Math.floor(Date.now() / 1000) - 30);
-    const tolerance = process.env.ENKU_TOL ? BigInt(process.env.ENKU_TOL) : BigInt(toleranceSec);
+    const tolerance = process.env.ASFALIA_TOL ? BigInt(process.env.ASFALIA_TOL) : BigInt(toleranceSec);
     // Ventana de vigencia del certificado. Corta a proposito en el demo:
     // el vencimiento se tiene que poder mostrar en vivo.
-    const validity = BigInt(process.env.ENKU_VALIDITY ?? 300);
+    const validity = BigInt(process.env.ASFALIA_VALIDITY ?? 300);
     const tx = await deployed.callTx.attest(claimed, tolerance, validity);
     return { txId: tx.public.txId as string, blockHeight: tx.public.blockHeight as number };
   }
@@ -146,5 +146,5 @@ export async function connectEnku(onProgress: (msg: string) => void = () => {}) 
     await walletCtx.wallet.stop();
   }
 
-  return { network, deployment, walletCtx, providers, deployed, Enku, readLedger, attest, settle, close };
+  return { network, deployment, walletCtx, providers, deployed, Asfalia, readLedger, attest, settle, close };
 }

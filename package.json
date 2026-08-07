@@ -1,12 +1,12 @@
 {
-  "name": "enku",
+  "name": "asfalia",
   "version": "1.0.0",
   "type": "module",
   "description": "Proof of Solvency that expires — private solvency attestation on Midnight",
   "author": "",
   "license": "Apache-2.0",
   "scripts": {
-    "compile": "compact compile contracts/enku.compact contracts/managed/enku",
+    "compile": "compact compile contracts/asfalia.compact contracts/managed/asfalia",
     "build": "npx tsc --noEmit || true",
     "setup": "npx tsx src/setup.ts",
     "deploy": "npx tsx src/deploy.ts",

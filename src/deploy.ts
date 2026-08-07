@@ -27,8 +27,8 @@ import { witnesses } from './witnesses';
 import { loadEntityBook, loadUsers, toPrivateState } from './entity-data';
 
 // Identifier under which this contract's private state is stored.
-// For enku this holds the entity's balances + commitment nonce (local only).
-const PRIVATE_STATE_ID = 'enkuPrivateState';
+// For asfalia this holds the entity's balances + commitment nonce (local only).
+const PRIVATE_STATE_ID = 'asfaliaPrivateState';
 
 // ─── Network configuration ─────────────────────────────────────────────────────
 //
@@ -74,7 +74,7 @@ async function waitForProofServer(maxAttempts = 60, delayMs = 2000): Promise<boo
 // ─── Compiled contract loading ─────────────────────────────────────────────────
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const zkConfigPath = path.resolve(__dirname, '..', 'contracts', 'managed', 'enku');
+const zkConfigPath = path.resolve(__dirname, '..', 'contracts', 'managed', 'asfalia');
 const contractPath = path.join(zkConfigPath, 'contract', 'index.js');
 
 if (!fs.existsSync(contractPath)) {
@@ -82,9 +82,9 @@ if (!fs.existsSync(contractPath)) {
   process.exit(1);
 }
 
-const Enku = await import(pathToFileURL(contractPath).href);
+const Asfalia = await import(pathToFileURL(contractPath).href);
 
-const compiledContract = CompiledContract.make('enku', Enku.Contract).pipe(
+const compiledContract = CompiledContract.make('asfalia', Asfalia.Contract).pipe(
   (CompiledContract.withWitnesses as any)(witnesses),
   (CompiledContract.withCompiledFileAssets as any)(zkConfigPath),
 );
@@ -120,7 +120,7 @@ async function createProviders(walletCtx: WalletContext) {
 
   return {
     privateStateProvider: levelPrivateStateProvider({
-      privateStateStoreName: 'enku-state',
+      privateStateStoreName: 'asfalia-state',
       accountId,
       privateStoragePasswordProvider: () => privateStatePassword,
     }),
@@ -293,7 +293,7 @@ async function main() {
     try {
       // Midnight.js 4.1.x supplies private state via privateStateId +
       // initialPrivateState: los balances de la entidad + nonce, que quedan
-      // SOLO en el store local (level). args vacio: enku no tiene constructor.
+      // SOLO en el store local (level). args vacio: asfalia no tiene constructor.
       deployed = await deployContract(providers, {
         compiledContract: compiledContract as any,
         args: [],

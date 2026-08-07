@@ -1,5 +1,5 @@
 /**
- * API de Enku — http nativo de Node, cero dependencias nuevas.
+ * API de Asfalia — http nativo de Node, cero dependencias nuevas.
  *
  * Mantiene UNA conexion viva al contrato (wallet sync es caro) y expone:
  *   GET  /api/state          estado publico + job de attest en curso
@@ -12,7 +12,7 @@ import * as http from 'node:http';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { connectEnku, type EnkuConnection } from '../src/contract';
+import { connectAsfalia, type AsfaliaConnection } from '../src/contract';
 import {
   loadEntityBook, loadUsers, toPrivateState, toClientAccount, bookFile, usersFile,
   type EntityBook, type DemoUser,
@@ -26,7 +26,7 @@ const UI_DIST = path.resolve(__dirname, '..', 'ui', 'dist');
 
 // ── Estado del servidor ────────────────────────────────────────────────────────
 
-let conn: EnkuConnection;
+let conn: AsfaliaConnection;
 let book: EntityBook = loadEntityBook();
 let users: DemoUser[] = loadUsers();
 
@@ -191,7 +191,7 @@ function serveStatic(res: http.ServerResponse, urlPath: string) {
   if (!fs.existsSync(file)) file = path.join(UI_DIST, 'index.html'); // SPA fallback
   if (!fs.existsSync(file)) {
     res.writeHead(200, { 'content-type': 'text/plain' });
-    return res.end('Enku API viva. El dashboard no esta buildeado: npm run ui:build');
+    return res.end('Asfalia API viva. El dashboard no esta buildeado: npm run ui:build');
   }
   res.writeHead(200, { 'content-type': MIME[path.extname(file)] ?? 'application/octet-stream' });
   fs.createReadStream(file).pipe(res);
@@ -199,8 +199,8 @@ function serveStatic(res: http.ServerResponse, urlPath: string) {
 
 // ── Arranque ───────────────────────────────────────────────────────────────────
 
-console.log('  Enku API — conectando al contrato…');
-conn = await connectEnku((m) => console.log(`  … ${m}`));
+console.log('  Asfalia API — conectando al contrato…');
+conn = await connectAsfalia((m) => console.log(`  … ${m}`));
 console.log(`  Contrato: ${conn.deployment.address.slice(0, 16)}… (${conn.network})`);
 
 http.createServer(async (req, res) => {

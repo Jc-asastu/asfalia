@@ -1,9 +1,9 @@
-# Enku — Proof of Solvency that expires
+# Asfalia — Proof of Solvency that expires
 
-> In Sumerian administration, the *enku* was the collector-inspector: the official who
+> In Sumerian administration, the *asfalia* was the collector-inspector: the official who
 > verified what was declared. Five thousand years later, the role is a ZK circuit.
 
-**Enku lets an entity (exchange, fintech, treasury) prove that its assets cover its
+**Asfalia lets an entity (exchange, fintech, treasury) prove that its assets cover its
 liabilities without revealing a single number — and the certificate it produces
 *expires on-chain*.** A cryptographically perfect proof, presented after its validity
 window, is rejected by the chain itself. Solvency is not a trophy; it is a state that
@@ -11,7 +11,7 @@ must be renewed.
 
 Built on [Midnight](https://midnight.network) during **Hack Buenos Aires 2026**
 (Beginner Track). Every proof-of-reserves in production today is born stale — a
-snapshot that can be shown months later as if it were fresh. Enku's verdict carries
+snapshot that can be shown months later as if it were fresh. Asfalia's verdict carries
 its own expiry, enforced by circuit, not by promise.
 
 ---
@@ -44,7 +44,7 @@ flowchart LR
     subgraph entity ["Entity's machine (private)"]
         book["Books (JSON)<br/>8 assets + nonce<br/>16 client accounts (id, balance, salt)"]
         ps["Proof server<br/>(Docker, local)"]
-        api["Enku API + dashboard"]
+        api["Asfalia API + dashboard"]
     end
     subgraph chain ["Midnight (public)"]
         ledger["Contract ledger<br/>verdict : Boolean<br/>attestedAt : Uint64<br/>validUntil : Uint64<br/>assetsCommitment : Bytes32<br/>liabilitiesRoot : Bytes32"]
@@ -61,7 +61,7 @@ flowchart LR
     ledger -- "Merkle root" --> client
 ```
 
-### What the circuit guarantees (`contracts/enku.compact`)
+### What the circuit guarantees (`contracts/asfalia.compact`)
 
 - **Sums inside the circuit.** `attest` receives the full asset list and all 16
   client accounts as witnesses and aggregates them in-circuit — the guarantee covers
@@ -141,7 +141,7 @@ cryptographically guarantee the numbers are real without attested sources. On-ch
 assets can be proven with wallet signatures; off-chain assets still need an auditor
 attesting sources. Liability completeness is covered by the Merkle layer — a client
 whose account is hidden or understated will catch it — but only for clients who
-check. Enku replaces the recalculation and the exposure, not the auditor: it turns
+check. Asfalia replaces the recalculation and the exposure, not the auditor: it turns
 a quarterly snapshot into continuous, private verification.
 
 ## License

@@ -34,7 +34,7 @@ export function App() {
     <>
       <header className="masthead">
         <h1>
-          ENKU
+          ASFALIA
           <small>Certificación de solvencia sin revelación de datos · Midnight Network</small>
         </h1>
         <div className="file-no">

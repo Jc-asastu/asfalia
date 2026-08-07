@@ -152,7 +152,7 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
   );
 }
 
-/** Sello seco de Enku: anillos concentricos y leyenda. SVG puro, sin assets. */
+/** Sello seco de Asfalia: anillos concentricos y leyenda. SVG puro, sin assets. */
 function Seal() {
   return (
     <svg width="92" height="92" viewBox="0 0 100 100" aria-hidden="true">
@@ -165,9 +165,9 @@ function Seal() {
       <text fontSize="8.2" letterSpacing="2.6" fill="#5a6472" fontFamily="Public Sans, sans-serif">
         <textPath href="#ring">PROOF OF SOLVENCY · THAT EXPIRES ·</textPath>
       </text>
-      <text x="50" y="55" textAnchor="middle" fontSize="13" letterSpacing="2"
+      <text x="50" y="54" textAnchor="middle" fontSize="9.5" letterSpacing="1.4"
         fill="#5a6472" fontFamily="Spectral, serif" fontWeight="700">
-        ENKU
+        ASFALIA
       </text>
     </svg>
   );

@@ -3,15 +3,15 @@
  * proof server y publica veredicto + timestamp + commitment. Sin menu:
  * un comando, un resultado — pensado para el demo y para la API.
  */
-import { connectEnku } from './contract';
+import { connectAsfalia } from './contract';
 import { loadEntityBook } from './entity-data';
 
 const t0 = Date.now();
 const book = loadEntityBook();
-console.log(`\n  Enku attest — ${book.entity}`);
+console.log(`\n  Asfalia attest — ${book.entity}`);
 console.log('  Los balances no salen de esta maquina. Viaja la prueba.\n');
 
-const conn = await connectEnku((m) => console.log(`  … ${m}`));
+const conn = await connectAsfalia((m) => console.log(`  … ${m}`));
 
 console.log('  Generando prueba ZK (proof server)…');
 const tProve = Date.now();

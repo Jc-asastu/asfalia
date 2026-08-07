@@ -1,4 +1,4 @@
-// Suite del circuito Enku — corre en el simulador de compact-runtime,
+// Suite del circuito Asfalia — corre en el simulador de compact-runtime,
 // sin proof server: verifica la LOGICA, no la prueba. La prueba real
 // se ejercita end-to-end contra la devnet (npm run attest).
 //
@@ -12,8 +12,8 @@ import {
   createConstructorContext,
   CostModel,
 } from "@midnight-ntwrk/compact-runtime";
-import { Contract, ledger } from "../contracts/managed/enku/contract/index.js";
-import { witnesses, type ClientAccount, type EnkuPrivateState } from "../src/witnesses.js";
+import { Contract, ledger } from "../contracts/managed/asfalia/contract/index.js";
+import { witnesses, type ClientAccount, type AsfaliaPrivateState } from "../src/witnesses.js";
 import { buildTree, inclusionProof, verifyInclusion, merkleRoot } from "../src/merkle.js";
 
 const NONCE = new Uint8Array(32).fill(7);
@@ -40,11 +40,11 @@ function attest(
   clients: ClientAccount[],
   opts: { claimed?: bigint; tolerance?: bigint; validity?: bigint } = {},
 ) {
-  const contract = new Contract<EnkuPrivateState>(witnesses);
-  const privateState: EnkuPrivateState = { assets, assetsNonce: NONCE, clients };
+  const contract = new Contract<AsfaliaPrivateState>(witnesses);
+  const privateState: AsfaliaPrivateState = { assets, assetsNonce: NONCE, clients };
   const { currentPrivateState, currentContractState, currentZswapLocalState } =
     contract.initialState(createConstructorContext(privateState, "0".repeat(64)));
-  const ctx: CircuitContext<EnkuPrivateState> = {
+  const ctx: CircuitContext<AsfaliaPrivateState> = {
     currentPrivateState,
     currentZswapLocalState,
     costModel: CostModel.initialCostModel(),

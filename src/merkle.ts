@@ -8,7 +8,7 @@ import type { ClientAccount } from "./witnesses";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const contractPath = path.resolve(__dirname, "..", "contracts", "managed", "enku", "contract", "index.js");
+const contractPath = path.resolve(__dirname, "..", "contracts", "managed", "asfalia", "contract", "index.js");
 
 type Pure = {
   leafHash(c: ClientAccount): Uint8Array;
@@ -85,7 +85,7 @@ export async function verifyInclusion(
   expectedRootHex: string,
 ): Promise<boolean> {
   const p = await pureCircuits();
-  let node = Uint8Array.from(Buffer.from(leafHex, "hex"));
+  let node: Uint8Array = Uint8Array.from(Buffer.from(leafHex, "hex"));
   for (const step of proofPath) {
     const sibling = Uint8Array.from(Buffer.from(step.siblingHex, "hex"));
     node = step.siblingSide === "right" ? p.pairHash(node, sibling) : p.pairHash(sibling, node);

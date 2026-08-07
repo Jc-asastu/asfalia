@@ -1,8 +1,8 @@
-# Enku — contexto del proyecto
+# Asfalia — contexto del proyecto
 
 *Proof of Solvency that expires.* Hack Buenos Aires, 7-8 agosto 2026, Beginner Track.
 
-`enku`: en la administración sumeria, el inspector recaudador — el funcionario que verificaba
+`asfalia`: en la administración sumeria, el inspector recaudador — el funcionario que verificaba
 lo declarado. El auditor, literal.
 
 ---
