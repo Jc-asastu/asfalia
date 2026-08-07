@@ -62,6 +62,7 @@ type LogEntry = {
   error: string | null;
 };
 
+const scanCache = new Map<string, unknown>();
 let history: LogEntry[] = [];
 try { history = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch { /* primer arranque */ }
 
@@ -193,6 +194,38 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
 
   if (req.method === 'GET' && url.pathname === '/api/history') {
     return json(res, 200, { heartbeatSec: HEARTBEAT_SEC || null, entries: history });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/scan') {
+    // El scanner: cabeza de la cadena + cada emision de nuestro log resuelta
+    // contra el indexer (identifier -> hash real + bloque). Cache en memoria.
+    const { resolveNetwork } = await import('../src/network');
+    const { config } = resolveNetwork();
+    const gql = async (query: string) => {
+      const r = await fetch(config.indexer, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query }),
+        signal: AbortSignal.timeout(8000),
+      });
+      return (await r.json()).data;
+    };
+    const head = (await gql('{ block { height hash timestamp } }'))?.block ?? null;
+    const rows: any[] = [];
+    for (const e of history.filter((x) => x.ok && x.txId).slice(-40)) {
+      const id = e.txId!;
+      if (!scanCache.has(id)) {
+        const d = await gql(
+          `{ transactions(offset: {identifier: "${id}"}) { hash block { height hash timestamp } } }`,
+        );
+        const tx = d?.transactions?.[0];
+        if (tx) scanCache.set(id, tx);
+      }
+      const tx = scanCache.get(id);
+      if (tx) rows.push({ identifier: id, verdict: e.verdict, trigger: e.trigger, ...tx });
+    }
+    rows.reverse(); // mas nuevas primero
+    return json(res, 200, { head, contractAddress: conn.deployment.address, rows });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/chain') {

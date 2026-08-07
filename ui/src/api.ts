@@ -93,6 +93,22 @@ export type ChainAction = {
 export const getChain = (): Promise<ChainAction> =>
   fetch('/api/chain').then((r) => r.json());
 
+export type ScanRow = {
+  identifier: string;
+  verdict: boolean | null;
+  trigger: 'heartbeat' | 'manual';
+  hash: string;
+  block: { height: number; hash: string; timestamp: number };
+};
+export type ScanResponse = {
+  head: { height: number; hash: string; timestamp: number } | null;
+  contractAddress: string;
+  rows: ScanRow[];
+};
+
+export const getScan = (): Promise<ScanResponse> =>
+  fetch('/api/scan').then((r) => r.json());
+
 export const getInclusion = (account: string): Promise<InclusionResponse> =>
   fetch(`/api/inclusion?account=${encodeURIComponent(account)}`).then((r) => r.json());
 

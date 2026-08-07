@@ -570,3 +570,46 @@ button { font: inherit; cursor: pointer; }
 }
 .chain-row .chain-label { color: var(--gold); }
 .chain-row .chain-data { color: var(--white); word-break: break-all; }
+
+/* ── Scanner de cadena ─────────────────────────────────────────────────── */
+
+.scanner { max-width: 960px; margin: 0 auto; }
+.scan-head {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  margin-bottom: 22px;
+}
+@media (max-width: 800px) { .scan-head { grid-template-columns: 1fr 1fr; } }
+.scan-head-item {
+  border: 1px solid var(--gold-dim);
+  background: var(--black-light);
+  padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.scan-label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+.scan-value { font-size: 12.5px; color: var(--white); word-break: break-all; }
+.scan-value.big { font-size: 24px; color: var(--gold); text-shadow: 0 0 16px var(--gold-glow); }
+
+.scan-card {
+  border: 1px solid var(--gold-dim);
+  background: var(--black-light);
+  padding: 26px 30px;
+}
+.scan-card h3 { font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--gold); }
+.scan-table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13px; }
+.scan-table th {
+  text-align: left; font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--gold); border-bottom: 1px solid var(--gold-dim); padding: 8px 6px;
+}
+.scan-table td { padding: 9px 6px; border-bottom: 1px solid var(--black-lighter); color: var(--white); }
+.scan-table .mono { word-break: break-all; }
+.scan-row { cursor: pointer; }
+.scan-row:hover td { background: var(--gold-faint); }
+.scan-row.open td { background: var(--gold-faint); }
+.chip {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 2px; border: 1px solid currentColor;
+}
+.chip.ok { color: var(--green); }
+.chip.bad { color: var(--red); }
+.scan-detail-row td { background: var(--black); }
+.scan-empty { text-align: center; color: var(--white-dim); padding: 22px; }
