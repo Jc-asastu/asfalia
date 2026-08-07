@@ -112,16 +112,23 @@ npm run dashboard        # build UI + serve API on http://localhost:3300
 
 Deploying to the public **preview** testnet is one flag: `npm run setup -- --network preview`
 (the deploy script generates a wallet, prints the faucet URL and waits for funding).
+**Asfalia is live on preview** — contract
+`59ac13f9812371f95b1df9991392509483a89cd27db12c723d0f5eff2a34d710`, emitting a
+heartbeat certificate; see any of its transactions on
+[Night Scan](https://explorer.preview.midnight.network), Midnight's own explorer.
 
-The dashboard has three views:
+The dashboard opens with a **role picker** — the separation is the product
+(see [docs/deployment.md](docs/deployment.md) for who runs what, where):
 
-- **Treasury (entity)** — the private books (8 assets, 16 client accounts),
-  editable, with live coverage; a *Generate attestation* button runs the real proof.
-- **Certificate (auditor)** — the public record: stamped verdict, on-chain validity
-  window with countdown, assets commitment, liabilities root, last transaction.
-  *Accept certificate* submits `settle()` — the chain accepts or rejects it.
-  *Reveal data* shows, by design, nothing.
-- **Portal (client)** — pick an account and verify its Merkle inclusion against the
+- **Entity** (local console) — the private books (8 assets, 16 client accounts),
+  editable, live coverage, *Generate attestation*, and the emission history with
+  the heartbeat. No login: possession is authentication.
+- **Auditor / counterparty** (public, read-only) — the stamped certificate with
+  its on-chain validity countdown, the heartbeat history (gaps included), and the
+  chain scanner with real block data from the indexer. *Accept certificate*
+  submits `settle()` — the chain accepts or rejects it. *Reveal data* shows,
+  by design, nothing.
+- **Client** — pick an account and verify its Merkle inclusion against the
   on-chain root: the answer comes from the tree, not from the entity's word.
 
 ## Tests
