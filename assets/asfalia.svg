@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="14" fill="#0a0a0a"/>
+  <circle cx="64" cy="64" r="52" fill="none" stroke="#8a7535" stroke-width="2"/>
+  <circle cx="64" cy="64" r="47" fill="none" stroke="#8a7535" stroke-width="0.8"/>
+  <circle cx="64" cy="64" r="30" fill="none" stroke="#c4a84f" stroke-width="1.2"/>
+  <rect x="38" y="38" width="52" height="52" fill="none" stroke="#8a7535" stroke-width="0.8" transform="rotate(45 64 64)"/>
+  <text x="64" y="70" text-anchor="middle" font-family="Georgia, serif" font-weight="700"
+        font-size="17" letter-spacing="1.5" fill="#c4a84f">ASF</text>
+</svg>

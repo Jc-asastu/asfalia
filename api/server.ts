@@ -435,6 +435,16 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   return json(res, 404, { error: 'no existe' });
 }
 
+function serveSample(res: http.ServerResponse, name: string) {
+  const file = path.resolve(__dirname, '..', 'data', 'samples', name);
+  if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
+  res.writeHead(200, {
+    'content-type': 'text/csv',
+    'content-disposition': `attachment; filename="${name}"`,
+  });
+  fs.createReadStream(file).pipe(res);
+}
+
 function serveStatic(res: http.ServerResponse, urlPath: string) {
   let file = path.join(UI_DIST, urlPath === '/' ? 'index.html' : urlPath);
   if (!file.startsWith(UI_DIST)) { res.writeHead(403); return res.end(); }
@@ -457,6 +467,9 @@ http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
   try {
     if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
+    if (/^\/samples\/(assets|clients)\.csv$/.test(url.pathname)) {
+      return serveSample(res, url.pathname.split('/').pop()!);
+    }
     return serveStatic(res, url.pathname);
   } catch (e: any) {
     console.error('  error:', e?.message ?? e);

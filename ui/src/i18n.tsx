@@ -102,7 +102,7 @@ const STR = {
     import_assets: 'Import assets…',
     import_clients: 'Import client accounts…',
     import_ok: 'Books imported. The next heartbeat attests over them.',
-    import_note: 'The universal export: label,amount_usd (8 rows) · account,name,amount_usd (16 rows). Ids and salts are generated and kept by the daemon — existing accounts keep their salt so client proofs survive re-imports. Samples in data/samples/.',
+    import_note: 'The universal export: label,amount_usd (8 rows) · account,name,amount_usd (16 rows). Ids and salts are generated and kept by the daemon — existing accounts keep their salt so client proofs survive re-imports. Demo samples:',
 
     // Job phases (codes from the API)
     phase_idle: '',
@@ -290,7 +290,7 @@ const STR = {
     import_assets: 'Importar activos…',
     import_clients: 'Importar cuentas de clientes…',
     import_ok: 'Libros importados. El próximo latido attesta sobre ellos.',
-    import_note: 'El export universal: label,amount_usd (8 filas) · account,name,amount_usd (16 filas). Los ids y salts los genera y guarda el daemon — las cuentas existentes conservan su salt para que las pruebas de los clientes sobrevivan re-importaciones. Ejemplos en data/samples/.',
+    import_note: 'El export universal: label,amount_usd (8 filas) · account,name,amount_usd (16 filas). Los ids y salts los genera y guarda el daemon — las cuentas existentes conservan su salt para que las pruebas de los clientes sobrevivan re-importaciones. Ejemplos de demo:',
 
     phase_idle: '',
     phase_proving: 'Generando prueba ZK — los balances no salen de esta máquina',

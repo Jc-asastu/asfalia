@@ -192,7 +192,12 @@ export function Treasury({ state }: { state: ServerState | null }) {
               </label>
             </div>
             {importMsg && <div className="import-msg" aria-live="polite">{importMsg}</div>}
-            <span className="import-note">{t.import_note}</span>
+            <span className="import-note">
+              {t.import_note}{' '}
+              <a href="/samples/assets.csv" download>assets.csv</a>
+              {' · '}
+              <a href="/samples/clients.csv" download>clients.csv</a>
+            </span>
           </div>
 
           <p className="action-note">
