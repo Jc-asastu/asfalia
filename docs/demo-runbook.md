@@ -50,9 +50,10 @@ Click **Aceptar certificado** (settle en vivo, tarda ~20-30 s — sigue hablando
 > "Ahí una contraparte lo está aceptando on-chain. Si estuviera vencido, la cadena
 > rechaza la transacción. No es una regla de UI: es un assert en el circuito."
 
-**[0:40–0:55] — privacidad (click Revelar datos)**
-> "¿Y los números?" → acta vacía → "**No hay datos que revelar.** Los balances
-> nunca salieron de la máquina de la entidad. Viajó la prueba, jamás un número."
+**[0:40–0:55] — privacidad (pestaña Scanner → click en una fila → explorador)**
+> "¿Y los números? No me crean a mí: esta es la transacción en el explorador
+> oficial de Midnight. **Transfer 0 tokens.** No viajó un token, no viajó un
+> número — viajó una prueba." (Tener la pestaña del explorador pre-abierta.)
 
 (El settle strip ya habrá impreso ✓ aceptado — señalarlo al pasar.)
 

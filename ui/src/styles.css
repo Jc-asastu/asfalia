@@ -282,23 +282,6 @@ button { font: inherit; cursor: pointer; }
 }
 .reveal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* El acta vacia: no hay datos que revelar. */
-.reveal-panel {
-  max-width: 730px;
-  margin: 20px auto 0;
-  border: 1px dashed var(--gold-dim);
-  padding: 36px 42px;
-  text-align: center;
-  color: var(--white-dim);
-  background: var(--gold-faint);
-}
-.reveal-panel .empty-mark {
-  font-size: 30px;
-  letter-spacing: 0.4em;
-  color: var(--gold-dim);
-}
-.reveal-panel p { margin-top: 14px; font-size: 14px; max-width: 54ch; margin-inline: auto; }
-.reveal-panel strong { color: var(--gold); }
 
 /* Resultado del settlement, dentro del acta */
 .settle-strip {

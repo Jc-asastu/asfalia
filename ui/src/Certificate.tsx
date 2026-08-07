@@ -7,7 +7,6 @@ type Freshness = 'none' | 'valid' | 'grace' | 'expired';
 /** La vista del auditor: un acta. Veredicto, vigencia, commitments. Nada mas existe. */
 export function Certificate({ state, now }: { state: ServerState | null; now: number }) {
   const { t, lang } = useI18n();
-  const [reveal, setReveal] = useState(false);
   const [thump, setThump] = useState(false);
   const lastAttest = useRef<string | null>(null);
 
@@ -124,9 +123,6 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
             >
               {t.accept_cert}
             </button>
-            <button className="reveal-btn" onClick={() => setReveal((r) => !r)}>
-              {t.reveal}
-            </button>
           </div>
         </div>
 
@@ -147,15 +143,6 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
         )}
       </article>
 
-      {reveal && (
-        <div className="reveal-panel" role="status">
-          <div className="empty-mark">∅</div>
-          <p>
-            <strong>{t.reveal_title}</strong>
-            {t.reveal_body}
-          </p>
-        </div>
-      )}
     </>
   );
 }
