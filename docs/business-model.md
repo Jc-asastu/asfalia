@@ -161,7 +161,119 @@ la garantía en el tiempo.
 
 ---
 
-## 4. La slide de BizDev
+## 4. Matriz competitiva y diferencial
+
+*Ampliación agregada tras el primer draft — el fundador teme que, con tantos actores probando
+solvencia hoy (OKX zk-STARK, Binance zk-SNARK, Backpack recursivo diario, Chainlink PoR, The
+Network Firm/LedgerLens, Hacken, Proven), alguien ya esté haciendo exactamente lo mismo que
+Asfalia. Esta sección responde eso feature por feature, con fuentes, sin inflar.*
+
+### 4.1 Matriz feature por feature
+
+| Actor | 1. Privacidad de composición | 2. Completitud de pasivos (Merkle inclusion/cliente) | 3. Cadencia | 4. Vencimiento forzado on-chain (rechazo automático) | 5. Huecos-como-señal | 6. Open-source / self-hosteable | 7. Quién verifica y cómo |
+|---|---|---|---|---|---|---|---|
+| **Asfalia** | Sí — ZK, no revela ni balances individuales ni el agregado (activos/pasivos) | Sí — Merkle inclusion por cliente | Continua (heartbeat 24/7, renovación automática) | **Sí — el certificado vencido es criptográficamente inválido en la verificación misma, no depende de que un tercero lo chequee** | Sí por diseño — el estado "expirado" es visible on-chain, el silencio es el evento | Sí — Apache 2.0, motor completo | Cualquiera, gratis, on-chain contra el certificado + Merkle proof propio |
+| **Proven / Bitso** | Sí — usa compromisos tipo Pedersen para ocultar el total de activos, no solo balances individuales | Parcial/no confirmado públicamente si hay Merkle path individual descargable por usuario además del zk-SNARK agregado | Mensual (con plan declarado de pasar a diaria) | **No** — el reporte es una foto fechada; "solo es válido para el punto en el tiempo en que se hizo la auditoría", pero la prueba sigue siendo matemáticamente verdadera para siempre, nada la vuelve inválida ni la rechaza | No — depende de que el usuario note que no se publicó el reporte del mes | No — SDK/software propietario de Proven ("ZeKnow Solv") | Cualquier usuario Bitso descarga el recibo y verifica el zk-SNARK; no hay contrato público de verificación abierto a cualquier tercero fuera del ecosistema Bitso |
+| **OKX (zk-STARK)** | Parcial — el zk-STARK prueba suma total correcta + no-negativos + inclusión sin exponer balances individuales, **pero el total de reservas se publica igual** (ej. "$11.3B") | Sí — Merkle path descargable, validador zk-STARK público | Mensual (15+ reportes consecutivos) | No — reporte periódico, el anterior no se "rechaza", solo queda viejo | Parcial — la racha mensual es narrativa de confianza, pero no hay mecanismo automático que marque un hueco como evento | Parcial — repo `okx/proof-of-reserves` en GitHub es la herramienta de verificación del usuario, no el motor completo para que un tercero pruebe su propia solvencia | Cualquier usuario OKX, gratis, vía validador zk-STARK descargable |
+| **Binance (zk-SNARK)** | Igual patrón que OKX: oculta balances individuales, publica el total agregado | Sí — Merkle sum tree + zk-SNARK, inclusión verificable | Menos consistente que OKX/Bybit (cadencia irregular históricamente, con señales de pasar a mensual) | No — mismo patrón de reporte periódico | No | Parcial — `binance/zkmerkle-proof-of-solvency` está en GitHub, pero es herramienta interna que Binance construyó para sí misma, no un producto adoptable turnkey por un tercero | Cualquier usuario Binance, gratis, vía herramienta propia de Binance |
+| **Backpack (Plonky2 recursivo)** | Sí — proofs recursivos sin exponer detalle de cuenta, incluye spot+margin+PnL no realizado | No confirmado públicamente que exista Merkle path individual descargable por usuario | **Diaria, con reconciliación interna cada 10 minutos — la cadencia más agresiva encontrada entre exchanges reales** | No — publicación periódica de alta frecuencia monitoreada por OtterSec, sin mecanismo de rechazo del proof anterior | Parcial — la cadencia diaria hace un hueco muy notorio en la práctica, pero no hay mecanismo formal de registro on-chain del silencio | No — sistema propietario construido con el partner de seguridad OtterSec | Público via reportes publicados; la verificación primaria pasa por OtterSec como partner, no un contrato abierto a cualquiera |
+| **Chainlink Proof of Reserve** | **No** — el feed publica el número de reservas directamente on-chain; es infraestructura de datos, no una prueba que oculte nada | No — no hay Merkle inclusion por cliente; es un feed agregado, no un mecanismo de pasivos por usuario | "Heartbeat" = intervalo máximo entre updates (ej. cada 24h) **o** disparo por desviación — es un trigger de actualización de oráculo | **No — ver 4.2, es la distinción que más importa tratar con cuidado** | No — si el DON deja de actualizar, el último valor simplemente queda disponible indefinidamente salvo que algo externo lo note | No — infraestructura propietaria de la red Chainlink (DON), no software que una entidad autohostee para probar su propia solvencia | Cualquier contrato lee el feed gratis; la validación de frescura es responsabilidad de cada contrato consumidor |
+| **The Network Firm (Real-Time Reserves)** | No — atestación CPA tradicional, publica cifras | Depende del producto — "Merkle Tree PoR" (línea aparte) sí ofrece esto; "Real-Time Reserves" es atestación firmada, no necesariamente con Merkle path individual | Muy alta — actualizada cada 30 segundos, la cadencia más alta encontrada en general | No — es un reporte de atestación firmado por CPA, no un certificado con lógica de expiración on-chain | No — depende de la relación contractual, sin señal on-chain de hueco | No — servicio profesional de firma contable | Público puede consultar el reporte publicado; no hay verificación criptográfica pública tipo Merkle proof individual en el producto "Real-Time" |
+| **LedgerLens** | No — tooling para que auditores generen/publiquen PoR; expone lo que el auditor decida reportar | Sí, como módulo de su suite (Merkle Tree PoR) | Configurable, incluye módulo "Real-Time PoR" | No — es plataforma SaaS de tooling, sin protocolo de expiración forzada | No confirmado | No — SaaS propietario ($199/mes+) | Depende del cliente (el auditor) que use la herramienta; no es gratis/público por defecto |
+| **Hacken** | No — combina Merkle Trees + auditoría tradicional; publica el agregado en reportes | Sí — Merkle tree, verificación de inclusión individual | Mensual (Bybit, OKX) | No — reportes de auditoría periódicos | No | No — servicio de auditoría bajo cotización | Usuario final del exchange auditado verifica gratis contra el Merkle root publicado |
+| **Aleo / Aztec / Mina** | N/A — no se encontró ningún producto de proof-of-solvency dedicado construido sobre estas L1 | N/A | N/A | N/A | N/A | N/A | N/A — espacio en blanco competitivo |
+
+### 4.2 Chainlink "heartbeat": mismo nombre, mecanismo distinto — tratado con honestidad
+
+El fundador pidió ojo especial acá porque es lo más parecido a `settle()` de Asfalia y el punto
+donde un juez técnico va a presionar primero.
+
+**Qué es el heartbeat de Chainlink, literalmente:** un timer que fuerza una actualización del
+feed cuando pasa X tiempo sin que el valor se haya movido más allá del *deviation threshold*.
+Es decir: "empujá un dato fresco al menos cada N segundos, o antes si cambia mucho". Sirve para
+mantener el feed relevante y ahorrar gas cuando el valor es estable. Fuente:
+[Chainlink Fundamentals — Proof of Reserve](https://updraft.cyfrin.io/courses/chainlink-fundamentals/chainlink-proof-of-reserve/introduction-to-proof-of-reserve).
+
+**Qué NO es:** no hay ningún mecanismo a nivel de protocolo/consenso que *rechace* una lectura
+vieja. `latestRoundData()` sigue devolviendo el último valor indefinidamente, esté fresco o no.
+La responsabilidad de decidir "esto está viejo, no lo uso" es 100% del contrato consumidor, vía
+un `require()` opcional que compara `updatedAt` contra un umbral que el propio equipo consumidor
+define (ej. `require(block.timestamp - updatedAt < 3600, "stale")`). Fuentes:
+[Chainlink Data Feeds docs](https://docs.chain.link/data-feeds),
+[0xMacro — how to consume Chainlink price feeds safely](https://0xmacro.com/blog/how-to-consume-chainlink-price-feeds-safely/).
+
+**Evidencia de que ese check se olvida en la práctica:** hay una familia recurrente de findings
+de seguridad en Code4rena (LoopFi 2024, Predy 2024, Stader 2023, entre otros) exactamente sobre
+protocolos que leen un feed Chainlink sin validar `updatedAt`, quedando expuestos a operar sobre
+datos obsoletos porque nada se lo impide automáticamente. Fuentes:
+[code-423n4/2024-07-loopfi-findings #521](https://github.com/code-423n4/2024-07-loopfi-findings/issues/521),
+[code-423n4/2024-05-predy-findings #243](https://github.com/code-423n4/2024-05-predy-findings/issues/243).
+
+Aplicado a Proof of Reserve específicamente: algunos consumidores (TUSD "ripcord", Secure Mint)
+sí implementan ese check y pausan el mint si el feed está viejo o por debajo de reservas — pero
+es una integración manual, caso por caso, que cada protocolo decide construir o no. Fuente:
+[Chainlink — Secure Mint](https://blog.chain.link/secure-mint/).
+
+**La distinción con Asfalia, sin exagerar:** en Asfalia la expiración vive *adentro* de la
+lógica de verificación del certificado mismo — un certificado vencido no es "un dato viejo que
+alguien podría decidir ignorar", es una prueba que la verificación rechaza por diseño, sin que
+el verificador (sea un contrato, sea un humano) tenga que acordarse de chequear un timestamp por
+su cuenta. Chainlink resuelve "avisar que hay un dato más nuevo disponible"; Asfalia resuelve
+"hacer que el dato viejo deje de ser válido". Son primos, no la misma pieza.
+
+### 4.3 Veredicto final
+
+**(a) Qué es genuinamente único vs. solo mejor:**
+
+- **Genuinamente único (no encontrado en ningún competidor investigado):**
+  1. Vencimiento forzado *dentro* de la verificación del certificado, con rechazo automático —
+     ni Proven/Bitso (foto fechada pero eternamente "verdadera"), ni Chainlink (staleness check
+     opcional del consumidor), ni OKX/Binance/Backpack/Hacken (reportes periódicos que
+     simplemente envejecen) tienen esto.
+  2. Huecos-como-señal explícita por diseño — en todos los competidores, notar un hueco es
+     trabajo manual del usuario/comunidad; en Asfalia el estado "expirado" es un hecho on-chain.
+  3. Ser nativo de una L1 de privacidad (Midnight) sin competencia directa — confirmado el
+     espacio en blanco en Aleo/Aztec/Mina.
+
+- **Solo mejor (la idea ya existe, Asfalia la ejecuta distinto o más prolijo, pero no la inventa):**
+  - Ocultar el agregado (activos/pasivos totales), no solo balances individuales: **Proven ya lo
+    hace** vía compromisos Pedersen para Bitso. No es exclusivo de Asfalia.
+  - Privacidad de balances individuales vía ZK: ya la tienen OKX (zk-STARK) y Binance (zk-SNARK).
+  - Merkle inclusion por cliente: ya la tienen OKX, Binance, Hacken.
+  - Cadencia alta/continua: **Backpack ya publica diario con reconciliación cada 10 min, y The
+    Network Firm ya ofrece atestación cada 30 segundos** — en frecuencia bruta, ninguno de los
+    dos lo tiene fácil Asfalia para superar de entrada.
+  - Motor abierto en algún grado: Binance publicó `zkmerkle-proof-of-solvency` en GitHub (aunque
+    como herramienta propia, no pensada para que un tercero la adopte como servicio).
+
+**(b) Competidor más cercano, y en qué nos pisa:**
+
+En arquitectura conceptual (ZK + ocultar el agregado + pensado como producto que un tercero
+adopta, no una solución interna que un solo exchange construyó para sí mismo), el más cercano es
+**Proven** — es lo más parecido a "esto ya existe": ZK, oculta activos y pasivos totales, cliente
+real (Bitso) desde 2023, con reportes recurrentes y roadmap declarado hacia diario. Nos pisa
+fuerte en: privacidad del agregado (ya resuelto por ellos) y en tener tracción de cliente real
+en LATAM — el mercado que Asfalia apuntaría primero. No nos pisa en: vencimiento forzado con
+rechazo on-chain (su prueba es una foto fechada, no un certificado que caduca) ni en
+huecos-como-señal.
+
+En cadencia bruta, **Backpack** es quien más presiona: diario con reconciliación cada 10
+minutos ya es más frecuente que lo que un daemon de heartbeat recién lanzado puede prometer de
+entrada sin curva de confianza. Ahí Asfalia no compite en velocidad, compite en que la cadencia
+está *enforced* por el protocolo (vence si no se renueva) en vez de ser una promesa operativa de
+la empresa.
+
+**(c) El diferencial de una línea que sobrevive a un juez técnico que conoce Chainlink:**
+
+> El heartbeat de Chainlink avisa que hay un dato más nuevo disponible y deja que cada contrato
+> decida si le importa que el viejo esté vencido; en Asfalia el vencimiento vive adentro de la
+> verificación del certificado mismo — una prueba vieja no es "hay una más nueva en algún lado",
+> es una prueba que la verificación **rechaza**, sin que nadie tenga que acordarse de chequear
+> un timestamp.
+
+---
+
+## 5. La slide de BizDev
 
 **4 bullets exactos para el pitch deck:**
 
@@ -198,3 +310,13 @@ la garantía en el tiempo.
 - [Onchain Finance Institute — PoR for stablecoin issuers](https://www.onchainfinanceinstitute.com/articles/proof-of-reserves-for-stablecoin-issuers)
 - [Blockworks — Circle/Deloitte](https://blockworks.com/news/circle-taps-deloitte-as-new-auditor-doubles-down-on-proof-of-reserves) / [The Block — Mazars/Tether](https://www.theblock.co/post/193935/skepticism-mazars-crypto-exchange)
 - [Scorechain — MiCA stablecoin regulation](https://www.scorechain.com/blog/eu-stablecoin-regulation-mica) / [Eco — MiCA 2026 update](https://eco.com/support/en/articles/14814632-mica-stablecoin-regulation-2026-update)
+
+**Fuentes de la matriz competitiva (sección 4):**
+
+- [OKX — zk-STARK explicación](https://www.okx.com/en-us/help/zero-knowledge-proofs-what-are-zk-starks-and-how-do-they-work) / [OKX PoR 15th report](https://www.okx.com/learn/okx-proof-of-reserves-15) / [okx/proof-of-reserves (GitHub)](https://github.com/okx/proof-of-reserves)
+- [Binance — cómo zk-SNARK mejora su PoR](https://www.binance.com/en/blog/tech/how-zksnarks-improve-binances-proof-of-reserves-system-6654580406550811626) / [binance/zkmerkle-proof-of-solvency (GitHub)](https://github.com/binance/zkmerkle-proof-of-solvency)
+- [Backpack Exchange — Proof of Reserves](https://learn.backpack.exchange/articles/proof-of-reserves-at-backpack) / [cobertura Arabian Post](https://thearabianpost.com/backpack-exchange-introduces-daily-proof-of-reserves-verification/)
+- [Chainlink Fundamentals — Proof of Reserve / heartbeat](https://updraft.cyfrin.io/courses/chainlink-fundamentals/chainlink-proof-of-reserve/introduction-to-proof-of-reserve) / [Chainlink Data Feeds docs](https://docs.chain.link/data-feeds) / [Chainlink — Secure Mint](https://blog.chain.link/secure-mint/) / [0xMacro — consuming Chainlink feeds safely](https://0xmacro.com/blog/how-to-consume-chainlink-price-feeds-safely/)
+- Evidencia de staleness no validada: [code-423n4/2024-07-loopfi-findings #521](https://github.com/code-423n4/2024-07-loopfi-findings/issues/521) / [code-423n4/2024-05-predy-findings #243](https://github.com/code-423n4/2024-05-predy-findings/issues/243) / [code-423n4/2024-07-loopfi-findings #494](https://github.com/code-423n4/2024-07-loopfi-findings/issues/494)
+- [Bitso Help Center — Proof of Solvency](https://support.bitso.com/hc/en-us/articles/11193181182100-What-is-Proof-of-Solvency) / [Bitso — aplicando ZK a la solvencia](https://support.bitso.com/hc/en-us/articles/14127889799444-Applying-the-Zero-Knowledge-technology-to-prove-solvency) / [Bitso — interpretar el reporte de solvencia](https://support.bitso.com/hc/en-us/articles/14128935576468-What-is-Bitso-s-solvency-report-How-should-I-interpret-it)
+- [Hacken — Binance discovery case study](https://hacken.io/case-studies/binance-discovery/) / [Hacken — PoR explicado](https://hacken.io/discover/proof-of-reserves-explained-from-key-mechanics-to-verification/)

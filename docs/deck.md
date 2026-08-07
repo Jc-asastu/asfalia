@@ -48,6 +48,11 @@ Ancla: informe de auditor = decenas de miles/trimestre y es una foto.
 Suscripción Asfalia = cientos-miles/mes y es un pulso.
 
 ## 8 · Cierre
+
+**Regla de honestidad afinada (post-research):** nunca vender privacidad como
+exclusiva (Proven la tiene) ni velocidad (Backpack gana). Vender: vencimiento
+por consenso + el paquete integrado (privacidad+completitud+vencimiento+abierto).
+
 Todo esto corre hoy: contrato Compact (2 circuitos), pruebas ZK reales, devnet,
 19 tests, dashboard trilingüe de producto. Apache 2.0.
 > "El certificado no promete el futuro — promete un pasado con fecha de
@@ -62,3 +67,12 @@ Todo esto corre hoy: contrato Compact (2 circuitos), pruebas ZK reales, devnet,
   obliga a probar / analogía TLS
 - B3: Límites honestos: el gap del oráculo, qué atestigua el auditor
 - B4: Roadmap: challenge circuit, ventanas por contraparte, testnet Preview
+- B5: **Matriz competitiva** (business-model.md) — la respuesta a "¿y Proven?":
+  Proven (cliente: Bitso) ya oculta agregados con Pedersen — la privacidad NO
+  es nuestro monopolio y no la vendemos como tal. Backpack publica diario y
+  The Network Firm atesta cada 30 s — la velocidad tampoco. Lo que NADIE tiene:
+  el vencimiento DENTRO de la verificación. El heartbeat de Chainlink avisa que
+  hay dato nuevo y deja el check de staleness al consumidor (familia entera de
+  findings en Code4rena de protocolos que se olvidaron el require) — en Asfalia
+  una prueba vieja no es "vieja": es una prueba que la verificación RECHAZA.
+  Y somos el único open-source self-hosteable del cuadro.
