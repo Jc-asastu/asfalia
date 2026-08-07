@@ -5,8 +5,14 @@ import CompactStandardLibrary;
 // ============================================================================
 // Enku — proof of solvency that expires.
 //
-// Estado publico (ledger): veredicto, momento del attest, commitment.
-// Estado privado (witnesses): los balances. Nunca cruzan esta linea.
+// Estado publico (ledger): veredicto, tiempos, commitment de activos y la
+// raiz Merkle de pasivos. Estado privado (witnesses): los libros completos.
+// Ningun saldo cruza esa linea.
+//
+// Los pasivos son 16 cuentas de clientes. Cada hoja del arbol es
+// hash(id, saldo, salt): el cliente que conoce su terna puede verificar
+// que su saldo esta incluido en los pasivos declarados — sin ver el de
+// nadie mas, y sin que la entidad pueda esconder cuentas.
 // ============================================================================
 
 // --- Estado publico -----------------------------------------------------------
@@ -23,43 +29,82 @@ export ledger attestedAt: Uint<64>;
 // la cadena misma rechaza el settlement: el certificado VENCE por circuito.
 export ledger validUntil: Uint<64>;
 
-// Commitment de los balances + nonce. Ata la prueba a los numeros reales:
+// Commitment de los activos + nonce. Ata la prueba a los numeros reales:
 // el circuito nunca confia en un valor crudo del prover.
-export ledger balancesCommitment: Bytes<32>;
+export ledger assetsCommitment: Bytes<32>;
+
+// Raiz Merkle de las cuentas de clientes (los pasivos). El total que el
+// circuito uso para el veredicto es la suma de EXACTAMENTE estas hojas.
+export ledger liabilitiesRoot: Bytes<32>;
 
 // --- Estado privado (witnesses, viven en la maquina del prover) ---------------
 
-// 8 activos y 8 pasivos, en centavos. El JSON de demo los provee.
-witness assetBalances(): Vector<8, Uint<64>>;
-witness liabilityBalances(): Vector<8, Uint<64>>;
+// Una cuenta de cliente: identificador, saldo en centavos y salt de cegado.
+// Sin salt, un hermano del arbol podria adivinar saldos por fuerza bruta.
+struct Client {
+  id: Bytes<32>;
+  balance: Uint<64>;
+  salt: Bytes<32>;
+}
 
-// Nonce del commitment: 32 bytes aleatorios que guarda el prover.
-// Sin nonce, un commitment de balances chicos se ataca por fuerza bruta.
-witness commitmentNonce(): Bytes<32>;
+witness assetBalances(): Vector<8, Uint<64>>;
+witness assetsNonce(): Bytes<32>;
+witness clientAccounts(): Vector<16, Client>;
+
+// --- Circuitos auxiliares -----------------------------------------------------
+
+export circuit leafHash(c: Client): Bytes<32> {
+  return persistentHash<Client>(c);
+}
+
+export circuit pairHash(a: Bytes<32>, b: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([a, b]);
+}
+
+// Raiz de 16 hojas, niveles explicitos. Verboso a proposito: se lee el arbol.
+circuit merkleRoot16(l: Vector<16, Bytes<32>>): Bytes<32> {
+  const a = [
+    pairHash(l[0], l[1]), pairHash(l[2], l[3]),
+    pairHash(l[4], l[5]), pairHash(l[6], l[7]),
+    pairHash(l[8], l[9]), pairHash(l[10], l[11]),
+    pairHash(l[12], l[13]), pairHash(l[14], l[15])
+  ];
+  const b = [
+    pairHash(a[0], a[1]), pairHash(a[2], a[3]),
+    pairHash(a[4], a[5]), pairHash(a[6], a[7])
+  ];
+  const c = [pairHash(b[0], b[1]), pairHash(b[2], b[3])];
+  return pairHash(c[0], c[1]);
+}
 
 // --- Circuito principal -------------------------------------------------------
 
 // `now` lo declara el prover, pero el circuito lo valida contra el tiempo de
 // bloque real: debe cumplirse  now <= blockTime < now + tolerance.
-// tolerance en segundos (p. ej. 300 = 5 minutos).
+// tolerance y validitySecs en segundos.
 export circuit attest(now: Uint<64>, tolerance: Uint<32>, validitySecs: Uint<32>): [] {
   const assets = assetBalances();
-  const liabilities = liabilityBalances();
-  const nonce = commitmentNonce();
+  const nonce = assetsNonce();
+  const clients = clientAccounts();
 
   // Suma adentro del circuito: la garantia cubre la lista completa,
   // no un agregado que el prover podria fabricar.
-  // Acumulador Uint<68>: 8 sumandos de 64 bits caben en 67, el cast nunca falla.
+  // Acumulador Uint<68>: 16 sumandos de 64 bits caben en 68 bits justos;
+  // los saldos reales estan ordenes de magnitud abajo del limite.
   const totalAssets = fold((acc, x) => (acc + x) as Uint<68>, 0 as Uint<68>, assets);
-  const totalLiabilities = fold((acc, x) => (acc + x) as Uint<68>, 0 as Uint<68>, liabilities);
-
-  // El commitment ata la prueba a estos numeros exactos.
-  balancesCommitment = disclose(
-    persistentCommit<Vector<2, Vector<8, Uint<64>>>>(
-      [assets, liabilities],
-      nonce
-    )
+  const totalLiabilities = fold(
+    (acc, c) => (acc + c.balance) as Uint<68>,
+    0 as Uint<68>,
+    clients
   );
+
+  // Los activos quedan atados a un commitment...
+  assetsCommitment = disclose(persistentCommit<Vector<8, Uint<64>>>(assets, nonce));
+
+  // ...y los pasivos, a la raiz del arbol de clientes. La suma del veredicto
+  // y la raiz publicada salen de las MISMAS hojas: no hay cuenta escondida.
+  const leaves = map((c) => leafHash(c), clients);
+  liabilitiesRoot = disclose(merkleRoot16(leaves));
 
   // Validacion temporal: el `now` declarado tiene que estar pegado al bloque.
   const claimed = disclose(now);

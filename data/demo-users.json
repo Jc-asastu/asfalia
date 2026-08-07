@@ -1,0 +1,117 @@
+{
+  "_comment": "Cuentas de clientes DEMO (mock). Cada hoja del Merkle es hash(id, saldo, salt). El salt ciega el saldo frente a hermanos del arbol. Datos estaticos: los libros viven en la maquina del que prueba.",
+  "users": [
+    {
+      "account": "AX-2026-0001",
+      "name": "Valentina Ferreyra",
+      "cents": "593582861",
+      "idHex": "805da846a32c3bb81e3c29b62179273c8eb5bb682575ec87a171ac826a6fce48",
+      "saltHex": "478dcb74f21345d2cce8038a39d5e0853964b50af03b971722f244f58d669cbe"
+    },
+    {
+      "account": "AX-2026-0002",
+      "name": "Mateo Albarracín",
+      "cents": "34855092",
+      "idHex": "e3772a077021721a278f64f7fd633dbdde131ca3766e4d58e72e310275dff6c1",
+      "saltHex": "5c0c8e9df469611a11f5125227c3712da86a78c49ea20e32684b27b95e909348"
+    },
+    {
+      "account": "AX-2026-0003",
+      "name": "Camila Soto",
+      "cents": "303310485",
+      "idHex": "334896a68f812d810a485ed03241b4d419b1b673bd4755d05ad7853c1f76eb97",
+      "saltHex": "706ca828bca0385813dbad3c681d06bd2aa399dac946dc59c0996daeee6f529a"
+    },
+    {
+      "account": "AX-2026-0004",
+      "name": "Joaquín Peralta",
+      "cents": "270950628",
+      "idHex": "279764017f2ed6cfc7403d75e173e4eaede5fe878f78e2978aa2447c462ddaed",
+      "saltHex": "16dc0cf0b9cd7f78df0cac5e40c02d4e518ca6eaac8d82f01b7210760474f36e"
+    },
+    {
+      "account": "AX-2026-0005",
+      "name": "Martina Ledesma",
+      "cents": "734600539",
+      "idHex": "8b5359309cc6273931bdb2a0df3dbe4d58fed8a728e7eca0fa5f6b8a880627df",
+      "saltHex": "7ffe0297c79bfbdabe898736a3566f893697b590481194f309ffea518f32cf21"
+    },
+    {
+      "account": "AX-2026-0006",
+      "name": "Santiago Bustos",
+      "cents": "157827706",
+      "idHex": "449273d7cee9d9136682575250def91799e2786d3748421599e3e9c8fe21da80",
+      "saltHex": "270815fe85df2fbdaa35adf9c1e2a8a3c0ed16bfe16849ef307590d273e34f98"
+    },
+    {
+      "account": "AX-2026-0007",
+      "name": "Lucía Herrera",
+      "cents": "127540831",
+      "idHex": "dff7e4c6428da8099f4efbacea67c7d1afcc4f14a3e3e04d42f8ac2acaf12797",
+      "saltHex": "2d33e5901a19bbd47d5552c7f47e8e80e952eb9d8e96cf37cb990c801f97b768"
+    },
+    {
+      "account": "AX-2026-0008",
+      "name": "Benjamín Correa",
+      "cents": "798779946",
+      "idHex": "4319e1b429ad564b858f9a3e247cb2c083eb8cb37f0a72e9d34119f3374cebd4",
+      "saltHex": "d3fd81b6ee7b3bb1c863e2601a7462667a40844853040b7a05814d32feb3e719"
+    },
+    {
+      "account": "AX-2026-0009",
+      "name": "Emilia Vega",
+      "cents": "803285932",
+      "idHex": "e01fcd3fe22a4248ac9ed336de7daecd3ada8b4f2222d3b41a3dbd199b364f73",
+      "saltHex": "bb387d080589ab054c24026cdea5b9a2145128edfed863bd39f917c10696489a"
+    },
+    {
+      "account": "AX-2026-0010",
+      "name": "Thiago Molina",
+      "cents": "694579303",
+      "idHex": "30fd54c7b2c1d0e2adcd93c0a5eb2d37dc2c9a7a5236bb4734865425feeaa4e2",
+      "saltHex": "fe981b29ee11b922ce1e6af41e3a2517ee5bb9cda1a2a3c984a24b9c429ca42d"
+    },
+    {
+      "account": "AX-2026-0011",
+      "name": "Isabella Núñez",
+      "cents": "51230000000",
+      "idHex": "b0b956af67442931a4c4555e1db7e9e779f6bee9cd56481fb339258e4d27eb0d",
+      "saltHex": "1cb7c2b70a3a4419f4fe020864d3979317de23f0749d0b7d52b20cf1cb80b2b7"
+    },
+    {
+      "account": "AX-2026-0012",
+      "name": "Lautaro Silva",
+      "cents": "118053353",
+      "idHex": "3a41ba5ef542e196161a9cf8169b1a83bdceca5ffb82d2d59a32a99ed5ebe1bd",
+      "saltHex": "812cb504e1427bbc14ebbe24bca87305fc388e69f6342e5e2ab29955b73647f0"
+    },
+    {
+      "account": "AX-2026-0013",
+      "name": "Mía Castillo",
+      "cents": "84200000000",
+      "idHex": "bbe4229cfdd24a2eeb454d134955a7b92868492545a102186d0f99f7c9e215ed",
+      "saltHex": "fe6a4aabc4b3a7e38e74319cd75aa65fef9f02ce76b119ff903d48bcb1c16b92"
+    },
+    {
+      "account": "AX-2026-0014",
+      "name": "Bautista Romero",
+      "cents": "804233790",
+      "idHex": "ce8343cbab46c1114afe44aa5c9af9f0ba3d90f871f5c471360ead4d6df146af",
+      "saltHex": "ca5eab8f67897996fafb893ccb49192be8f6688437717713daf3405dff69a912"
+    },
+    {
+      "account": "AX-2026-0015",
+      "name": "Catalina Ponce",
+      "cents": "247670711",
+      "idHex": "715d51cf591093a9ef4e863a5e850a965cda2c354fa708c7e8a908b713e95c93",
+      "saltHex": "9b774f4ebdf672eb231645ae36f2e1e4de1e90c80621db212f19d54dbcecc24b"
+    },
+    {
+      "account": "AX-2026-0016",
+      "name": "Federico Arias",
+      "cents": "30115000000",
+      "idHex": "35c47009edc77eb48631d076231e171ce761497aa7947d9815df1bcadd49c5f7",
+      "saltHex": "794e1dd4c786a2eb2618c1266f6a90663f76c7a9ceb98bfe3fa6bad17408d946"
+    }
+  ]
+}

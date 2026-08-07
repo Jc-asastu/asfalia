@@ -1,13 +1,19 @@
-// Estado privado de Enku: los balances y el nonce del commitment.
-// Vive en la maquina del prover. Jamas toca el ledger, los logs ni la UI.
+// Estado privado de Enku: los activos, su nonce, y las cuentas de clientes
+// (los pasivos). Vive en la maquina del prover. Jamas toca el ledger,
+// los logs ni la UI del auditor.
 
 import type { WitnessContext } from "@midnight-ntwrk/midnight-js-protocol/compact-runtime";
 
+export type ClientAccount = {
+  readonly id: Uint8Array; // 32 bytes — identificador de la cuenta
+  readonly balance: bigint; // centavos
+  readonly salt: Uint8Array; // 32 bytes — ciega el saldo en la hoja del arbol
+};
 
 export type EnkuPrivateState = {
   readonly assets: bigint[]; // 8 items, centavos
-  readonly liabilities: bigint[]; // 8 items, centavos
-  readonly nonce: Uint8Array; // 32 bytes aleatorios
+  readonly assetsNonce: Uint8Array; // 32 bytes
+  readonly clients: ClientAccount[]; // 16 cuentas
 };
 
 // Ledger se tipa unknown: managed/ se genera al compilar (en el Codespace) y
@@ -19,12 +25,12 @@ export const witnesses = {
     privateState,
     privateState.assets,
   ],
-  liabilityBalances: ({ privateState }: WC): [EnkuPrivateState, bigint[]] => [
+  assetsNonce: ({ privateState }: WC): [EnkuPrivateState, Uint8Array] => [
     privateState,
-    privateState.liabilities,
+    privateState.assetsNonce,
   ],
-  commitmentNonce: ({ privateState }: WC): [EnkuPrivateState, Uint8Array] => [
+  clientAccounts: ({ privateState }: WC): [EnkuPrivateState, ClientAccount[]] => [
     privateState,
-    privateState.nonce,
+    privateState.clients,
   ],
 };
