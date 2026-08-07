@@ -81,7 +81,7 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
         <dl className="clauses">
           <div className="clause">
             <dt>Atestado</dt>
-            <dd>{hasAttest ? new Date(attestedAt * 1000).toLocaleString('es-AR') : '—'}</dd>
+            <dd>{hasAttest ? new Date(attestedAt * 1000).toLocaleString('es-AR', { hour12: false }) : '—'}</dd>
           </div>
           <div className="clause">
             <dt>Vigencia (ventana {mmss(VALIDITY_SEC)})</dt>
