@@ -1,210 +1,130 @@
-# solvency
+# Enku — Proof of Solvency that expires
 
-A Midnight Network smart contract scaffolded with create-mn-app.
+> In Sumerian administration, the *enku* was the collector-inspector: the official who
+> verified what was declared. Five thousand years later, the role is a ZK circuit.
 
-## Quick start
+**Enku lets an entity (exchange, fintech, treasury) prove that its assets cover its
+liabilities without revealing a single number — and the certificate it produces
+*expires on-chain*.** A cryptographically perfect proof, presented after its validity
+window, is rejected by the chain itself. Solvency is not a trophy; it is a state that
+must be renewed.
 
-Requirements: Node 22, Docker (with Compose v2), and the Compact compiler at the version pinned in `.compact-version` at the create-mn-app repo root (the version this project was scaffolded against).
+Built on [Midnight](https://midnight.network) during **Hack Buenos Aires 2026**
+(Beginner Track). Every proof-of-reserves in production today is born stale — a
+snapshot that can be shown months later as if it were fresh. Enku's verdict carries
+its own expiry, enforced by circuit, not by promise.
+
+---
+
+## The three moments
+
+1. **Privacy** — the entity attests. The auditor sees `SOLVENT`, verified on-chain.
+   Pressing *reveal data* shows an empty record: the balances never left the
+   entity's machine. The proof traveled; the numbers, never.
+2. **Integrity** — edit one hidden liability and re-attest: the math breaks,
+   `NOT SOLVENT`, and the public commitment visibly changes. The proof is bound to
+   the real books — lie and it shatters.
+3. **Freshness** — wait out the window: the same valid certificate is now
+   **rejected by the chain** (`failed assert: certificate has expired`). No oracle,
+   no trusted clock — the block time comparison lives inside the circuit.
+
+## Architecture
+
+Midnight separates public state (on-chain ledger) from private state (*witnesses*,
+which live on the prover's machine). [Compact](https://docs.midnight.network/compact)
+compiles the contract into ZK circuits; proofs are generated locally against a proof
+server and verified on-chain.
+
+```mermaid
+flowchart LR
+    subgraph entity ["Entity's machine (private)"]
+        book["Books (JSON)<br/>8 assets · 8 liabilities<br/>+ commitment nonce"]
+        ps["Proof server<br/>(Docker, local)"]
+        api["Enku API + dashboard"]
+    end
+    subgraph chain ["Midnight (public)"]
+        ledger["Contract ledger<br/>verdict : Boolean<br/>attestedAt : Uint64<br/>validUntil : Uint64<br/>balancesCommitment : Bytes32"]
+    end
+    auditor["Auditor / counterparty<br/>(certificate view)"]
+
+    book -- "witnesses (never leave)" --> api
+    api -- "ZK proof" --> ps
+    ps -- "attest tx (proof only)" --> ledger
+    ledger -- "public state" --> auditor
+    auditor -- "settle() — accepted only if solvent AND fresh" --> ledger
+```
+
+### What the circuit guarantees (`contracts/enku.compact`)
+
+- **Sums inside the circuit.** `attest` receives the full balance lists as witnesses
+  and aggregates them in-circuit — the guarantee covers every item, not an aggregate
+  the prover could fabricate. Accumulator is `Uint<68>` (8 × 64-bit terms fit in 67
+  bits): no silent overflow is possible.
+- **Witness–commitment binding.** Witnesses are *not* cryptographically verified by
+  themselves — the prover supplies them. That is why the circuit never trusts a raw
+  value: the books are bound to a `persistentCommit` (with a 32-byte nonce) that is
+  published on-chain. Edit one cent and the commitment changes.
+- **Time anchoring without an oracle.** The prover declares `now`; the circuit
+  requires `blockTimeGte(now) && blockTimeLt(now + tolerance)` — the declared
+  timestamp must sit inside a window around the actual block time, so attestations
+  can be neither backdated nor postdated. Block time is epoch **seconds**.
+- **Expiry as circuit law.** `attest` records `validUntil = now + validitySecs`.
+  The `settle` circuit — the counterparty accepting the certificate — asserts
+  `verdict && blockTimeLt(validUntil)`. Past the window, the transaction fails at
+  the assert. Rejection is consensus, not UI.
+
+### What is public, what is private
+
+| | |
+|---|---|
+| **Public (ledger)** | verdict (boolean) · attest timestamp · validity deadline · books commitment |
+| **Private (witnesses)** | every balance, every label, every aggregate — they never touch the ledger, the logs, or the network |
+
+## Running it
+
+Requirements: Node 22+, Docker (Compose v2), Compact compiler 0.31.1
+(`curl --proto '=https' --tlsv1.2 -LsSf https://github.com/midnightntwrk/compact/releases/latest/download/compact-installer.sh | sh && compact update`).
 
 ```bash
 npm install
-npm run setup
-npm run test:e2e
+npm run compile          # Compact -> ZK circuits + prover/verifier keys
+docker compose up -d     # local devnet: node + indexer + proof server
+npm run setup            # deploy (genesis-funded wallet, no faucet needed)
+npm test                 # 14-case circuit suite (simulator, no proof server)
+npm run attest           # one-shot: real ZK proof -> verdict on-chain
+npm run dashboard        # build UI + serve API on http://localhost:3300
 ```
 
-`npm run setup` runs end-to-end with no prompts:
+Deploying to the public **preview** testnet is one flag: `npm run setup -- --network preview`
+(the deploy script generates a wallet, prints the faucet URL and waits for funding).
 
-1. `docker compose up -d --wait` — starts a local Midnight devnet (node, indexer, proof-server) and blocks until all three pass their healthchecks.
-2. `npm run compile` — compiles `contracts/hello-world.compact` to `contracts/managed/hello-world/`.
-3. `npm run deploy` — derives the genesis-seed wallet (NIGHT pre-minted), registers UTXOs for DUST generation, deploys the contract, writes `.midnight-state.json`.
+The dashboard has two views:
 
-`npm run test:e2e` reconnects to the deployed contract and reads its ledger state. Exits 0 if the contract is live and indexable.
+- **Treasury (entity)** — the private books, editable, with live coverage; a
+  *Generate attestation* button runs the real proof (~25 s on 4 cores).
+- **Certificate (auditor)** — the public record: stamped verdict, on-chain validity
+  window with countdown, books commitment, last transaction. *Accept certificate*
+  submits `settle()` — the chain accepts or rejects it. *Reveal data* shows,
+  by design, nothing.
 
-## Local devnet
+## Tests
 
-The project ships its own devnet via `docker-compose.yml`:
+`npm test` runs a 14-case suite against the circuit simulator, covering the verdict
+(including the exact-equality edge and the one-cent-over case), zero balance leakage
+into public state, commitment determinism and sensitivity, timestamp anchoring, and
+`settle` accepting fresh certificates while rejecting insolvent and expired ones.
+A lied number breaks exactly the test that should break.
 
-| Service        | Port | Purpose                                         |
-| -------------- | ---- | ----------------------------------------------- |
-| `node`         | 9944 | Midnight node, `dev` chain preset               |
-| `indexer`      | 8088 | GraphQL indexer for chain state                 |
-| `proof-server` | 6300 | Generates ZK proofs for contract transactions   |
+## Honest limits
 
-State lives in container-managed volumes. Tear everything down with:
+The proof guarantees that the *committed* numbers satisfy solvency — no system can
+cryptographically guarantee the numbers are real without attested sources. On-chain
+assets can be proven with wallet signatures; off-chain assets and liability
+completeness need an auditor attesting sources (the industry answer is a Merkle tree
+of liabilities with per-user inclusion proofs — the natural next layer for Enku).
+Enku replaces the recalculation and the exposure, not the auditor: it turns a
+quarterly snapshot into continuous, private verification.
 
-```bash
-docker compose down -v
-```
+## License
 
-That removes all containers, networks, and volumes. The next `npm run setup` starts from a clean slate.
-
-## ⚠️ LOCAL DEVNET ONLY
-
-The deploy script uses a well-known genesis seed (`0000…0001`) so the
-pre-minted NIGHT in the `dev` chain preset is immediately available. **Do
-not use this seed against Preprod, mainnet, or any environment that
-handles real value** — anyone running this devnet has full access to
-funds at this seed.
-
-## Networks
-
-This DApp supports three networks:
-
-| Network | When to use | Default? |
-|---|---|---|
-| `undeployed` | Local devnet bundled in `docker-compose.yml`. Genesis seed is hardcoded; no funding needed. | yes |
-| `preview` | Public preview testnet. Faucet at `https://midnight-tmnight-preview.nethermind.dev`. |  |
-| `preprod` | Public preprod testnet. Faucet at `https://midnight-tmnight-preprod.nethermind.dev`. |  |
-
-The active network is **sticky**: whichever network you last interacted
-with stays active until you switch. Any command run with `--network <name>`
-also sets that network active for subsequent commands. The default on a
-fresh project is `undeployed` (local devnet).
-
-```sh
-npm run setup -- --network preview   # runs on preview AND makes it active
-npm run cli                          # still uses preview
-npm run check-balance                # still uses preview
-```
-
-You can also switch without running anything else:
-
-```sh
-npm run network preview         # active network is now preview
-npm run network                 # prints current active network
-npm run network undeployed      # switch back to local devnet
-```
-
-### How wallets work across networks
-
-- `undeployed` uses a hardcoded genesis seed. Local devnet pre-funds it.
-- `preview` and `preprod` generate a fresh wallet on first use: a 24-word
-  BIP-39 recovery phrase (printed once) plus its derived seed, both stored
-  in `.midnight-state.json` (gitignored). The wallet survives switching
-  networks — switch back later and your funded wallet returns.
-- **Back up your recovery phrase** if you fund a public-network wallet you
-  care about. It is printed when the wallet is created and kept in
-  `.midnight-state.json` under `wallets.<network>.mnemonic`. Anyone holding
-  the phrase controls the wallet.
-- Wallets created before mnemonic support keep working from their stored
-  `seed`; they just have no phrase to import into Lace.
-
-### Using the same wallet as Lace
-
-Seeds are derived with the standard BIP-39 `mnemonicToSeed` step — the same
-convention Lace uses — so identity is portable in both directions:
-
-- **Bring your Lace wallet here**: pass your recovery phrase via the
-  `MIDNIGHT_WALLET_MNEMONIC` env var — the derived addresses match Lace.
-  To keep the phrase out of your shell history, enter it with a hidden
-  prompt instead of typing it inline:
-
-  ```bash
-  read -s MIDNIGHT_WALLET_MNEMONIC && export MIDNIGHT_WALLET_MNEMONIC
-  npm run deploy
-  ```
-- **Take a scaffold wallet to Lace**: restore Lace from the 24-word phrase
-  in `.midnight-state.json`.
-
-### Funding a public-network wallet
-
-On the first run with `--network preview` (or `preprod`):
-
-1. `setup` will print your wallet address and the faucet URL.
-2. Open the faucet URL, paste the address, request tNIGHT.
-3. `setup` polls the wallet balance every 10 s and continues automatically
-   once funds arrive.
-4. The default poll budget is 10 minutes. Override with
-   `MIDNIGHT_FAUCET_TIMEOUT_MS=1800000` (30 min) for unattended runs.
-
-If the faucet is slow or the script times out, your seed is preserved.
-Re-run `npm run setup -- --network preview` once the funds land.
-
-### Environment overrides
-
-These env vars override the active network's config (no per-network
-suffix — they apply to whichever network is active for the run):
-
-| Variable | Effect |
-|---|---|
-| `MIDNIGHT_WALLET_SEED` | Use this hex seed (32-128 hex chars; a Lace-compatible BIP-39 seed is 128) instead of generating/persisting one. Useful for CI with a pre-funded wallet. |
-| `MIDNIGHT_WALLET_MNEMONIC` | Use this BIP-39 recovery phrase instead of generating a wallet — e.g. your Lace phrase, for the same addresses as Lace. Not persisted. Set only one of seed/mnemonic. |
-| `MIDNIGHT_INDEXER_URL` | Override the indexer GraphQL URL. |
-| `MIDNIGHT_INDEXER_WS_URL` | Override the indexer WS URL. |
-| `MIDNIGHT_NODE_URL` | Override the node RPC URL. |
-| `MIDNIGHT_FAUCET_URL` | Override the faucet URL printed during setup. |
-| `MIDNIGHT_PROOF_SERVER_URL` | Override the proof server URL — set to a public proof server (e.g. `https://lace-proof-pub.preview.midnight.network`) to skip running one locally. |
-| `MIDNIGHT_FAUCET_TIMEOUT_MS` | Faucet poll budget in milliseconds (default 600000 = 10 min). |
-
-By default all networks use the **local** proof server. Public proof
-servers exist (see the env override above) but the local default keeps
-your witness data on your machine and avoids depending on a remote
-service for the deploy hot path.
-
-### Switching back to local devnet
-
-```sh
-npm run network undeployed     # or: npm run setup -- --network undeployed
-```
-
-Your preview/preprod wallet seeds and deploy addresses stay in
-`.midnight-state.json`. Switch back later, and they're still there.
-
-### Wallet sync cache
-
-After each `deploy`, `cli`, or `check-balance` run, the scripts serialize the
-wallet's synced state to `.midnight-wallet-state/<network>/` (gitignored).
-The next run on the same network restores from that snapshot and only catches
-up to the latest block instead of replaying from genesis — meaningful on
-`preview` / `preprod` where a from-seed sync takes minutes.
-
-If the cache is stale or corrupt (e.g. after an SDK upgrade with an
-incompatible state format) the wallet falls back to a fresh from-seed sync
-with a one-line warning. `npm run clean` removes the cache along with other
-generated state.
-
-## Available scripts
-
-| Script                  | Description                                                    |
-| ----------------------- | -------------------------------------------------------------- |
-| `npm run setup`         | One-shot: start devnet, compile, deploy.                       |
-| `npm run compile`       | Compile the Compact contract.                                  |
-| `npm run deploy`        | Deploy the compiled contract (requires devnet up + compiled).  |
-| `npm run cli`           | Interactive CLI to call circuits on the deployed contract.     |
-| `npm run check-balance` | Print the genesis-seed wallet's NIGHT and DUST balances.       |
-| `npm run test:e2e`      | Smoke + read-back check against the deployed contract.         |
-| `npm run clean`         | Remove `contracts/managed/`, `.midnight-state.json`, and `.midnight-wallet-state/`. |
-| `npm run proof-server:start` / `:stop` | Compose lifecycle for just the proof-server service. |
-
-## Project structure
-
-```
-solvency/
-├── contracts/
-│   └── hello-world.compact     # Compact source
-├── scripts/
-│   └── e2e-check.ts            # smoke + read-back
-├── src/
-│   ├── network.ts              # network selection + state file management
-│   ├── wallet.ts               # wallet construction + sync-state cache
-│   ├── setup.ts                # orchestrator for `npm run setup`
-│   ├── deploy.ts               # deploy the contract
-│   ├── cli.ts                  # interact with deployed contract
-│   └── check-balance.ts        # NIGHT / DUST balance
-├── docker-compose.yml          # node + indexer + proof-server
-├── .midnight-state.json        # written by deploy (gitignored)
-├── .midnight-wallet-state/     # serialized sync state per network (gitignored)
-├── package.json
-└── tsconfig.json
-```
-
-## Compact compiler version
-
-`.compact-version` at the create-mn-app repo root pinned the compiler
-version this project was scaffolded against. To upgrade your local
-compiler to that version:
-
-```bash
-compact update <version>
-compact use <version>
-```
+[Apache 2.0](LICENSE)
