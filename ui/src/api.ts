@@ -109,6 +109,13 @@ export type ScanResponse = {
 export const getScan = (): Promise<ScanResponse> =>
   fetch('/api/scan').then((r) => r.json());
 
+export const importCsv = (kind: 'assets' | 'clients', csv: string) =>
+  fetch('/api/book/import', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ kind, csv }),
+  }).then((r) => r.json());
+
 export const getInclusion = (account: string): Promise<InclusionResponse> =>
   fetch(`/api/inclusion?account=${encodeURIComponent(account)}`).then((r) => r.json());
 

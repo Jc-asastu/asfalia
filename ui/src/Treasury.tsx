@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fmtCents, getBook, postAttest, putBook, type Book, type ServerState } from './api';
+import { fmtCents, getBook, importCsv, postAttest, putBook, type Book, type ServerState } from './api';
 import { useI18n, phaseText } from './i18n';
 
 /** Back-office de la entidad. Estos libros viven SOLO en esta maquina:
@@ -10,6 +10,19 @@ export function Treasury({ state }: { state: ServerState | null }) {
   const [editing, setEditing] = useState<{ side: 'assets' | 'clients'; index: number } | null>(null);
   const [draft, setDraft] = useState('');
   const [elapsed, setElapsed] = useState(0);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  const doImport = (kind: 'assets' | 'clients') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    file.text().then(async (csv) => {
+      const r = await importCsv(kind, csv);
+      if (r.error) setImportMsg(`✕ ${r.error}`);
+      else { setBook(r.book); setImportMsg(`✓ ${t.import_ok}`); }
+      setTimeout(() => setImportMsg(null), 6000);
+    });
+  };
 
   // Los libros se refrescan solos: la pantalla siempre refleja el estado real
   // de la maquina (editar sin polling dejaba vistas viejas en otras pantallas).
@@ -153,6 +166,22 @@ export function Treasury({ state }: { state: ServerState | null }) {
             ) : (
               <div>{t.no_attest_yet}</div>
             )}
+          </div>
+
+          <div className="import-box">
+            <span className="import-title">{t.import_title}</span>
+            <div className="import-btns">
+              <label className="reveal-btn import-btn">
+                {t.import_assets}
+                <input type="file" accept=".csv,text/csv" onChange={doImport('assets')} hidden />
+              </label>
+              <label className="reveal-btn import-btn">
+                {t.import_clients}
+                <input type="file" accept=".csv,text/csv" onChange={doImport('clients')} hidden />
+              </label>
+            </div>
+            {importMsg && <div className="import-msg" aria-live="polite">{importMsg}</div>}
+            <span className="import-note">{t.import_note}</span>
           </div>
 
           <p className="action-note">

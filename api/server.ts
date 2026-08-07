@@ -282,6 +282,57 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     return json(res, 200, { ok: true, book: { ...book, users } });
   }
 
+  if (req.method === 'POST' && url.pathname === '/api/book/import') {
+    // Carga de libros por CSV — el formato que exporta cualquier ERP o DB.
+    // assets:  label,amount_usd            (8 filas)
+    // clients: account,name,amount_usd     (16 filas)
+    // Los ids y salts los genera el daemon: son criptografia interna. Si la
+    // cuenta ya existia se conserva su salt (continuidad de las pruebas de
+    // inclusion del cliente).
+    const { kind, csv } = await readBody(req);
+    if (!['assets', 'clients'].includes(kind) || typeof csv !== 'string') {
+      return json(res, 400, { error: 'kind assets|clients y csv (texto)' });
+    }
+    const rows = csv.trim().split(/\r?\n/).map((l) => l.split(',').map((c) => c.trim()));
+    const header = rows.shift()?.map((h) => h.toLowerCase()) ?? [];
+    const col = (name: string) => header.indexOf(name);
+    const toCents = (v: string) => {
+      if (!/^-?[0-9]+([.,][0-9]{1,2})?$/.test(v)) throw new Error(`importe invalido: "${v}"`);
+      const [w, f = ''] = v.replace(',', '.').split('.');
+      return `${w}${f.padEnd(2, '0')}`;
+    };
+    try {
+      if (kind === 'assets') {
+        const li = col('label'), ai = col('amount_usd');
+        if (li < 0 || ai < 0) throw new Error('encabezados esperados: label,amount_usd');
+        if (rows.length !== 8) throw new Error(`el circuito espera 8 activos, el CSV trae ${rows.length}`);
+        book.assets = rows.map((r) => ({ label: r[li], cents: toCents(r[ai]) }));
+        fs.writeFileSync(bookFile(), JSON.stringify(book, null, 2));
+      } else {
+        const ac = col('account'), nc = col('name'), am = col('amount_usd');
+        if (ac < 0 || nc < 0 || am < 0) throw new Error('encabezados esperados: account,name,amount_usd');
+        if (rows.length !== 16) throw new Error(`el circuito espera 16 cuentas, el CSV trae ${rows.length}`);
+        const { randomBytes } = await import('node:crypto');
+        const prev = new Map(users.map((u) => [u.account, u]));
+        users = rows.map((r) => {
+          const existing = prev.get(r[ac]);
+          return {
+            account: r[ac],
+            name: r[nc],
+            cents: toCents(r[am]),
+            idHex: existing?.idHex ?? randomBytes(32).toString('hex'),
+            saltHex: existing?.saltHex ?? randomBytes(32).toString('hex'),
+          };
+        });
+        fs.writeFileSync(usersFile(), JSON.stringify({ users }, null, 2));
+      }
+      await syncPrivateState();
+      return json(res, 200, { ok: true, book: { ...book, users } });
+    } catch (e: any) {
+      return json(res, 400, { error: e?.message ?? 'CSV invalido' });
+    }
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/inclusion') {
     // Prueba de inclusion para una cuenta: la entidad se la entrega a SU
     // cliente (en produccion, autenticado). Contiene el saldo propio y el

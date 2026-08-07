@@ -1,0 +1,9 @@
+label,amount_usd
+BTC cold storage,1824500000.00
+BTC hot wallet,123000000.00
+ETH cold storage,641200000.00
+ETH hot wallet,54800000.00
+USDC reserve,389000000.00
+USDT reserve,217500000.00
+ARS fiat (custodian),98000000.00
+USD fiat (custodian),156000000.00
