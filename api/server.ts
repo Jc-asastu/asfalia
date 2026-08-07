@@ -9,6 +9,7 @@
  *   GET  /*                  dashboard estatico (ui/dist)
  */
 import * as http from 'node:http';
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -267,7 +268,9 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     // Edita un activo o el saldo de una cuenta de cliente — el momento
     // adversarial del demo: mentir un numero y ver romperse la matematica.
     const { side, index, cents } = await readBody(req);
-    if (!/^\d+$/.test(String(cents))) return json(res, 400, { error: 'cents entero' });
+    if (!/^\d+$/.test(String(cents)) || BigInt(cents) > (1n << 64n) - 1n) {
+      return json(res, 400, { error: 'cents: entero no negativo dentro de Uint<64>' });
+    }
     if (side === 'assets' && index >= 0 && index < 8) {
       book.assets[index].cents = String(cents);
       fs.writeFileSync(bookFile(), JSON.stringify(book, null, 2));
@@ -286,33 +289,83 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     // Carga de libros por CSV — el formato que exporta cualquier ERP o DB.
     // assets:  label,amount_usd            (8 filas)
     // clients: account,name,amount_usd     (16 filas)
-    // Los ids y salts los genera el daemon: son criptografia interna. Si la
-    // cuenta ya existia se conserva su salt (continuidad de las pruebas de
-    // inclusion del cliente).
+    // Parser RFC 4180 minimo: campos entrecomillados (nombres con comas,
+    // decimales con coma) y comillas escapadas. Los ids y salts los genera
+    // el daemon; una cuenta existente conserva su salt (continuidad de las
+    // pruebas de inclusion del cliente).
     const { kind, csv } = await readBody(req);
     if (!['assets', 'clients'].includes(kind) || typeof csv !== 'string') {
       return json(res, 400, { error: 'kind assets|clients y csv (texto)' });
     }
-    const rows = csv.trim().split(/\r?\n/).map((l) => l.split(',').map((c) => c.trim()));
-    const header = rows.shift()?.map((h) => h.toLowerCase()) ?? [];
-    const col = (name: string) => header.indexOf(name);
-    const toCents = (v: string) => {
-      if (!/^-?[0-9]+([.,][0-9]{1,2})?$/.test(v)) throw new Error(`importe invalido: "${v}"`);
-      const [w, f = ''] = v.replace(',', '.').split('.');
-      return `${w}${f.padEnd(2, '0')}`;
+
+    const parseCsv = (text: string): string[][] => {
+      const out: string[][] = [];
+      let row: string[] = [], cell = '', inQ = false;
+      const src = text.replace(/^\uFEFF/, '');
+      for (let i = 0; i < src.length; i++) {
+        const ch = src[i];
+        if (inQ) {
+          if (ch === '"') {
+            if (src[i + 1] === '"') { cell += '"'; i++; }
+            else inQ = false;
+          } else cell += ch;
+        } else if (ch === '"') inQ = true;
+        else if (ch === ',') { row.push(cell.trim()); cell = ''; }
+        else if (ch === '\n' || ch === '\r') {
+          if (ch === '\r' && src[i + 1] === '\n') i++;
+          row.push(cell.trim()); cell = '';
+          if (row.some((c) => c !== '')) out.push(row);
+          row = [];
+        } else cell += ch;
+      }
+      row.push(cell.trim());
+      if (row.some((c) => c !== '')) out.push(row);
+      return out;
     };
+
+    // Una sola regla de centavos para todo el sistema: no negativo, con
+    // hasta dos decimales (punto o coma), y acotado a Uint<64>.
+    const U64_MAX = (1n << 64n) - 1n;
+    const toCents = (v: string): string => {
+      if (!/^[0-9]+([.,][0-9]{1,2})?$/.test(v)) {
+        throw new Error(`importe invalido: "${v}" (no negativo, hasta 2 decimales)`);
+      }
+      const [w, f = ''] = v.replace(',', '.').split('.');
+      const cents = BigInt(`${w}${f.padEnd(2, '0')}`);
+      if (cents > U64_MAX) throw new Error(`importe fuera de rango: "${v}"`);
+      return cents.toString();
+    };
+
     try {
+      const rows = parseCsv(csv);
+      const header = rows.shift()?.map((h) => h.toLowerCase()) ?? [];
+      const expected = kind === 'assets' ? ['label', 'amount_usd'] : ['account', 'name', 'amount_usd'];
+      const cols = expected.map((name) => {
+        const i = header.indexOf(name);
+        if (i < 0) throw new Error(`encabezados esperados: ${expected.join(',')}`);
+        return i;
+      });
+      const want = kind === 'assets' ? 8 : 16;
+      if (rows.length !== want) {
+        throw new Error(`el circuito espera ${want} filas, el CSV trae ${rows.length}`);
+      }
+      for (const [n, r] of rows.entries()) {
+        if (r.length !== header.length) {
+          throw new Error(`fila ${n + 2}: ${r.length} columnas, se esperaban ${header.length}`);
+        }
+      }
+
       if (kind === 'assets') {
-        const li = col('label'), ai = col('amount_usd');
-        if (li < 0 || ai < 0) throw new Error('encabezados esperados: label,amount_usd');
-        if (rows.length !== 8) throw new Error(`el circuito espera 8 activos, el CSV trae ${rows.length}`);
+        const [li, ai] = cols;
         book.assets = rows.map((r) => ({ label: r[li], cents: toCents(r[ai]) }));
         fs.writeFileSync(bookFile(), JSON.stringify(book, null, 2));
       } else {
-        const ac = col('account'), nc = col('name'), am = col('amount_usd');
-        if (ac < 0 || nc < 0 || am < 0) throw new Error('encabezados esperados: account,name,amount_usd');
-        if (rows.length !== 16) throw new Error(`el circuito espera 16 cuentas, el CSV trae ${rows.length}`);
-        const { randomBytes } = await import('node:crypto');
+        const [ac, nc, am] = cols;
+        const seen = new Set<string>();
+        for (const r of rows) {
+          if (seen.has(r[ac])) throw new Error(`cuenta duplicada en el CSV: "${r[ac]}"`);
+          seen.add(r[ac]);
+        }
         const prev = new Map(users.map((u) => [u.account, u]));
         users = rows.map((r) => {
           const existing = prev.get(r[ac]);
@@ -326,11 +379,21 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         });
         fs.writeFileSync(usersFile(), JSON.stringify({ users }, null, 2));
       }
-      await syncPrivateState();
-      return json(res, 200, { ok: true, book: { ...book, users } });
     } catch (e: any) {
       return json(res, 400, { error: e?.message ?? 'CSV invalido' });
     }
+
+    // El parseo ya persistio: si la sincronizacion del estado privado falla,
+    // decirlo tal cual — los libros quedaron guardados, el proximo attest
+    // necesita que el sync se recupere (o un reinicio del daemon).
+    try {
+      await syncPrivateState();
+    } catch (e: any) {
+      return json(res, 500, {
+        error: `libros guardados, pero fallo la sincronizacion del estado privado: ${e?.message ?? e}. Reintente o reinicie el daemon.`,
+      });
+    }
+    return json(res, 200, { ok: true, book: { ...book, users } });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/inclusion') {

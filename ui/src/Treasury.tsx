@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fmtCents, getBook, importCsv, postAttest, putBook, type Book, type ServerState } from './api';
 import { useI18n, phaseText } from './i18n';
 
@@ -11,17 +11,28 @@ export function Treasury({ state }: { state: ServerState | null }) {
   const [draft, setDraft] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const msgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
+
+  const showMsg = (m: string) => {
+    setImportMsg(m);
+    if (msgTimer.current) clearTimeout(msgTimer.current);
+    msgTimer.current = setTimeout(() => setImportMsg(null), 8000);
+  };
 
   const doImport = (kind: 'assets' | 'clients') => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    file.text().then(async (csv) => {
-      const r = await importCsv(kind, csv);
-      if (r.error) setImportMsg(`✕ ${r.error}`);
-      else { setBook(r.book); setImportMsg(`✓ ${t.import_ok}`); }
-      setTimeout(() => setImportMsg(null), 6000);
-    });
+    file
+      .text()
+      .then(async (csv) => {
+        const r = await importCsv(kind, csv);
+        if (r.error) showMsg(`✕ ${r.error}`);
+        else { setBook(r.book); showMsg(`✓ ${t.import_ok}`); }
+      })
+      .catch((err) => showMsg(`✕ ${err?.message ?? err}`));
   };
 
   // Los libros se refrescan solos: la pantalla siempre refleja el estado real
