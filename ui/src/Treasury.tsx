@@ -11,7 +11,15 @@ export function Treasury({ state }: { state: ServerState | null }) {
   const [draft, setDraft] = useState('');
   const [elapsed, setElapsed] = useState(0);
 
-  useEffect(() => { getBook().then(setBook); }, []);
+  // Los libros se refrescan solos: la pantalla siempre refleja el estado real
+  // de la maquina (editar sin polling dejaba vistas viejas en otras pantallas).
+  // No pisa una edicion en curso.
+  useEffect(() => {
+    const load = () => { if (!editing) getBook().then(setBook).catch(() => {}); };
+    load();
+    const i = setInterval(load, 4000);
+    return () => clearInterval(i);
+  }, [editing]);
 
   const job = state?.attest;
   useEffect(() => {
