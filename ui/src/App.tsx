@@ -6,6 +6,7 @@ import { Portal } from './Portal';
 import { History } from './History';
 import { Scanner } from './Scanner';
 import { I18nProvider, useI18n, type Lang } from './i18n';
+import { Landing } from './Landing';
 
 export function App() {
   return (
@@ -120,24 +121,7 @@ function Shell() {
       </header>
 
       {!role ? (
-        <main className="role-landing">
-          <h2>{t.role_title}</h2>
-          <p className="role-lead">{t.role_lead}</p>
-          <div className="role-cards">
-            <button className="role-card" onClick={() => pickRole('entity')}>
-              <span className="role-name">{t.role_entity}</span>
-              <span className="role-desc">{t.role_entity_desc}</span>
-            </button>
-            <button className="role-card" onClick={() => pickRole('auditor')}>
-              <span className="role-name">{t.role_auditor}</span>
-              <span className="role-desc">{t.role_auditor_desc}</span>
-            </button>
-            <button className="role-card" onClick={() => pickRole('client')}>
-              <span className="role-name">{t.role_client}</span>
-              <span className="role-desc">{t.role_client_desc}</span>
-            </button>
-          </div>
-        </main>
+        <Landing state={state} onPick={pickRole} />
       ) : (
         <>
           <nav className="tabs" role="tablist">
