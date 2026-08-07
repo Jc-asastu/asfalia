@@ -96,3 +96,28 @@ parameter before we did.
 - [Banxa — What PoR proves and what it leaves out](https://banxa.com/learn/security-and-self-custody/what-is-proof-of-reserves)
 - [Space and Time — Why crypto institutions need more than a snapshot](https://www.spaceandtime.io/blog/trustless-proof-of-reserves-why-crypto-institutions-need-more-than-a-snapshot)
 - [BitGo — PoR for stablecoins: attestations, audits, onchain transparency](https://www.bitgo.com/resources/blog/proof-of-reserves-stablecoins/)
+
+## Q3 — "Attested on day 1 with a 30-day window; funds move on day 5. What happens?"
+
+Nothing: the certificate stays valid until it expires. Three layers to that answer:
+
+1. **Every attestation system has this problem, worse.** Deloitte's day-1 report
+   also misses the day-5 move — and it *never* expires: the stale PDF circulates as
+   "proof" forever. Today's real exposure is 30 days *plus infinity*. Asfalia's lie
+   has an on-chain death date.
+2. **Expiry bounds the lie, and the verifier prices the window.** Maximum exposure
+   equals the window. Renewal costs ~90 seconds of compute, not an audit cycle, so
+   windows can be hours. A large settlement demands a 24h window; a small one
+   accepts 30 days. Risk becomes a visible on-chain parameter. And at expiry the
+   entity must re-prove with the moved funds — and fails. Equilibrium: keeping a
+   fresh short-window certificate is economically equivalent to being solvent.
+3. **The TLS analogy.** A stolen key on day 5 leaves the SSL certificate valid
+   until expiry. The industry's answer was not to abandon certificates — it was to
+   shorten them (Let's Encrypt: years → 90 days → 6-day certs). Same thesis,
+   applied to solvency.
+
+Future design (out of 27h scope, architecture supports it): a **challenge
+circuit** — anyone demands re-attestation; no response within X ⇒ early expiry.
+
+Stage line: *"The certificate doesn't promise the future — it promises a past with
+an expiry date. Everyone else promises the same thing, without the date."*
