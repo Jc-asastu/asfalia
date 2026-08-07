@@ -14,7 +14,7 @@
   --gold-glow-strong: rgba(196, 168, 79, 0.35);
   --gold-faint: rgba(196, 168, 79, 0.05);
   --white: #e8e4dc;
-  --white-dim: #9a9690;
+  --white-dim: #bab6ae;
   --red: #a04040;
   --green: #5a9a5a;
   --font-display: 'Spectral', georgia, serif;
@@ -29,7 +29,7 @@ body {
   background: var(--black);
   color: var(--white);
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   min-height: 100vh;
 }
@@ -89,15 +89,15 @@ button { font: inherit; cursor: pointer; }
   display: block;
   font-family: var(--font-mono);
   font-weight: 400;
-  font-size: 11px;
+  font-size: 12.5px;
   letter-spacing: 0.12em;
   color: var(--white-dim);
   margin: 6px 0 0;
   text-shadow: none;
 }
 .masthead .file-no {
-  font-size: 11px;
-  color: var(--gold-dim);
+  font-size: 12px;
+  color: var(--gold);
   text-align: right;
   letter-spacing: 0.06em;
 }
@@ -111,7 +111,7 @@ button { font: inherit; cursor: pointer; }
   border-bottom: 1px solid transparent;
   color: var(--white-dim);
   padding: 6px 2px 10px;
-  font-size: 11.5px;
+  font-size: 12.5px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
 }
@@ -146,10 +146,10 @@ button { font: inherit; cursor: pointer; }
 
 .cert-head { display: flex; justify-content: space-between; gap: 20px; }
 .cert-head .kicker {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--gold-dim);
+  color: var(--gold);
 }
 .cert-head h2 {
   font-family: var(--font-display);
@@ -161,7 +161,7 @@ button { font: inherit; cursor: pointer; }
 }
 .cert-head .entity {
   margin-top: 12px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--white-dim);
 }
 .cert-head .entity strong { color: var(--white); font-weight: 600; }
@@ -232,7 +232,7 @@ button { font: inherit; cursor: pointer; }
   gap: 18px;
   padding: 10px 2px;
   border-bottom: 1px solid var(--black-lighter);
-  font-size: 12.5px;
+  font-size: 14px;
 }
 .clause dt { color: var(--white-dim); letter-spacing: 0.05em; }
 .clause dd { text-align: right; word-break: break-all; color: var(--white); }
@@ -259,8 +259,8 @@ button { font: inherit; cursor: pointer; }
   flex-wrap: wrap;
 }
 .cert-foot .verified {
-  font-size: 10px;
-  color: var(--gold-dim);
+  font-size: 11px;
+  color: var(--gold);
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
@@ -297,15 +297,15 @@ button { font: inherit; cursor: pointer; }
   letter-spacing: 0.4em;
   color: var(--gold-dim);
 }
-.reveal-panel p { margin-top: 14px; font-size: 12.5px; max-width: 54ch; margin-inline: auto; }
+.reveal-panel p { margin-top: 14px; font-size: 14px; max-width: 54ch; margin-inline: auto; }
 .reveal-panel strong { color: var(--gold); }
 
 /* Resultado del settlement, dentro del acta */
 .settle-strip {
   margin-top: 16px;
   padding: 11px 15px;
-  border: 1px solid var(--black-lighter);
-  font-size: 12px;
+  border: 1px solid var(--gold-dim);
+  font-size: 13.5px;
 }
 .settle-strip .accepted { color: var(--green); }
 .settle-strip .rejected { color: var(--red); }
@@ -318,7 +318,7 @@ button { font: inherit; cursor: pointer; }
   border: 1px solid var(--gold-dim);
   background: var(--gold-faint);
   color: var(--gold);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   padding: 10px 16px;
@@ -342,7 +342,7 @@ button { font: inherit; cursor: pointer; }
   border-bottom: 1px solid var(--gold-dim);
   padding-bottom: 8px;
 }
-.ledger-block table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ledger-block table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .ledger-block td { padding: 8px 2px; border-bottom: 1px solid var(--black-lighter); color: var(--white-dim); }
 .ledger-block td.amount { text-align: right; white-space: nowrap; color: var(--white); }
 .ledger-block td.amount button {
@@ -379,8 +379,8 @@ button { font: inherit; cursor: pointer; }
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  font-size: 12.5px;
-  color: var(--white-dim);
+  font-size: 14px;
+  color: var(--white);
   flex-wrap: wrap;
 }
 .coverage .ratio { font-weight: 600; }
@@ -412,16 +412,16 @@ button { font: inherit; cursor: pointer; }
   border: 1px solid var(--black-lighter);
   background: var(--black-light);
   padding: 13px 15px;
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--white-dim);
   min-height: 68px;
 }
 .job-status .phase { color: var(--white); }
 .job-status .timer { font-size: 22px; color: var(--gold); text-shadow: 0 0 16px var(--gold-glow); }
 .job-status .err { color: var(--red); }
-.job-status .txid { font-size: 10.5px; word-break: break-all; color: var(--gold-dim); }
+.job-status .txid { font-size: 11.5px; word-break: break-all; color: var(--gold); }
 
-.action-note { font-size: 11px; color: var(--white-dim); line-height: 1.65; }
+.action-note { font-size: 12.5px; color: var(--white-dim); line-height: 1.65; }
 .action-note strong { color: var(--gold); }
 
 /* ── Portal del cliente ────────────────────────────────────────────────── */
@@ -437,10 +437,10 @@ button { font: inherit; cursor: pointer; }
   font-size: 21px; font-weight: 600;
   color: var(--gold);
 }
-.portal-lead { margin-top: 10px; color: var(--white-dim); font-size: 12.5px; max-width: 58ch; }
+.portal-lead { margin-top: 10px; color: var(--white-dim); font-size: 14px; max-width: 58ch; }
 .portal-label {
-  display: block; margin-top: 22px; font-size: 10px;
-  letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-dim);
+  display: block; margin-top: 22px; font-size: 11px;
+  letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold);
 }
 .portal-card select {
   margin-top: 8px; width: 100%; max-width: 440px;
@@ -452,19 +452,19 @@ button { font: inherit; cursor: pointer; }
 .portal-result { margin-top: 24px; border: 1px solid var(--black-lighter); padding: 20px 22px; }
 .portal-result.ok { border-color: var(--green); box-shadow: 0 0 24px rgba(90, 154, 90, 0.12); }
 .portal-result.bad { border-color: var(--red); box-shadow: 0 0 24px rgba(160, 64, 64, 0.12); }
-.portal-verdict { font-weight: 700; font-size: 13.5px; }
+.portal-verdict { font-weight: 700; font-size: 15.5px; }
 .portal-result.ok .portal-verdict { color: var(--green); }
 .portal-result.bad .portal-verdict { color: var(--red); }
 .portal-detail { margin-top: 15px; }
 .portal-detail > div {
   display: flex; justify-content: space-between; gap: 14px;
-  padding: 7px 0; border-bottom: 1px solid var(--black-lighter); font-size: 12px;
+  padding: 7px 0; border-bottom: 1px solid var(--black-lighter); font-size: 13.5px;
 }
 .portal-detail dt { color: var(--white-dim); }
 .portal-detail dd { word-break: break-all; text-align: right; color: var(--white); }
-.portal-note { margin-top: 14px; font-size: 11.5px; color: var(--white-dim); max-width: 60ch; }
+.portal-note { margin-top: 14px; font-size: 13px; color: var(--white-dim); max-width: 60ch; }
 
 .ledger-block .acct {
-  font-size: 10.5px; color: var(--gold-dim);
+  font-size: 12px; color: var(--gold);
   margin-right: 6px;
 }
