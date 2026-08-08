@@ -891,3 +891,26 @@ button { font: inherit; cursor: pointer; }
   font: inherit; padding: 2px 6px; cursor: pointer; font-size: 13px;
 }
 .theme-btn:hover { color: var(--gold); }
+
+/* Modo claro: letra mas gruesa y secundarios mas oscuros — legible de lejos */
+:root[data-theme='light'] { --white-dim: #47505c; }
+:root[data-theme='light'] body { font-weight: 500; }
+:root[data-theme='light'] .clause dt,
+:root[data-theme='light'] .portal-detail dt,
+:root[data-theme='light'] .hist-detail dt,
+:root[data-theme='light'] .scan-label,
+:root[data-theme='light'] .portal-lead,
+:root[data-theme='light'] .hero-sub,
+:root[data-theme='light'] .action-note,
+:root[data-theme='light'] .import-note,
+:root[data-theme='light'] .score-note,
+:root[data-theme='light'] .role-desc,
+:root[data-theme='light'] .entities-lead,
+:root[data-theme='light'] .portal-note,
+:root[data-theme='light'] .landing-foot,
+:root[data-theme='light'] .entity-note p { font-weight: 600; }
+:root[data-theme='light'] .tabs button { font-weight: 700; }
+:root[data-theme='light'] .scan-table td,
+:root[data-theme='light'] .ledger-block td { font-weight: 500; }
+:root[data-theme='light'] .clause dd,
+:root[data-theme='light'] .file-no { font-weight: 600; }
