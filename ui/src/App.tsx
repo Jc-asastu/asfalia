@@ -209,7 +209,7 @@ function Shell() {
           <main className="tabpanel">{renderView(activeView)}</main>
         </>
       ) : stage === 'landing' ? (
-        <Landing state={state} onEnter={() => setStage('entities')} />
+        <Landing state={state} theme={theme} onEnter={() => setStage('entities')} />
       ) : stage === 'entities' ? (
         <Entities state={state} now={now} onPick={pickSubrole} />
       ) : (

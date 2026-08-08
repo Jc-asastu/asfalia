@@ -42,8 +42,6 @@
   --surface-glass2: rgba(236, 238, 226, 0.8);
   --overstamp-bg: rgba(242, 244, 234, 0.6);
 }
-/* El campo de oro, como marca de agua grabada sobre el papel */
-:root[data-theme='light'] .landing canvas { opacity: 0.45; filter: brightness(0.5) sepia(0.3); }
 :root[data-theme='light'] .hero-title { text-shadow: none; }
 :root[data-theme='light'] .masthead h1 { text-shadow: none; }
 

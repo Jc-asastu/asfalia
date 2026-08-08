@@ -9,9 +9,11 @@ const GoldField = lazy(() => import('./GoldField'));
  *  (link a la guía, nada más). Los balances no tienen puerta web. */
 export function Landing({
   state,
+  theme,
   onEnter,
 }: {
   state: ServerState | null;
+  theme: 'dark' | 'light';
   onEnter: () => void;
 }) {
   const { t } = useI18n();
@@ -30,7 +32,7 @@ export function Landing({
   return (
     <main className="landing">
       <Suspense fallback={null}>
-        <GoldField />
+        <GoldField light={theme === 'light'} />
       </Suspense>
 
       <section className="hero">

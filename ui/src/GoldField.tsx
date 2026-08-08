@@ -76,6 +76,7 @@ const vertexShader = /* glsl */ `
 
 const fragmentShader = /* glsl */ `
   precision mediump float;
+  uniform float uLight;
   varying float vDepth;
   varying float vGlow;
   varying float vRand;
@@ -86,18 +87,21 @@ const fragmentShader = /* glsl */ `
     if (dist > 0.5) discard;
     float soft = smoothstep(0.5, 0.0, dist);
 
-    // oro hermetico — un solo tono, el brillo hace el trabajo
-    vec3 gold = vec3(0.77, 0.66, 0.31);
     float depthMix = clamp((vDepth + 1.0) * 0.5, 0.0, 1.0);
-    float lum = 0.22 + depthMix * 0.36 + vGlow * 0.7 + (vRand - 0.5) * 0.10;
-    vec3 col = gold * lum;
 
-    float a = soft * clamp(0.22 + depthMix * 0.3 + vGlow * 0.5, 0.0, 0.85);
-    gl_FragColor = vec4(col, a);
+    // oscuro: oro aditivo. claro: tinta metalica sobre papel.
+    vec3 gold = vec3(0.77, 0.66, 0.31);
+    float lum = 0.22 + depthMix * 0.36 + vGlow * 0.7 + (vRand - 0.5) * 0.10;
+    vec3 ink = vec3(0.16, 0.19, 0.24) * (0.85 + (vRand - 0.5) * 0.25);
+    vec3 col = uLight > 0.5 ? ink : gold * lum;
+
+    float aDark = clamp(0.22 + depthMix * 0.3 + vGlow * 0.5, 0.0, 0.85);
+    float aLight = clamp(0.14 + depthMix * 0.28 + vGlow * 0.6, 0.0, 0.7);
+    gl_FragColor = vec4(col, soft * (uLight > 0.5 ? aLight : aDark));
   }
 `;
 
-function Field() {
+function Field({ light }: { light: boolean }) {
   const matRef = useRef<THREE.ShaderMaterial>(null);
   const target = useRef(new THREE.Vector2(0, 0));
   const eased = useRef(new THREE.Vector2(0, 0));
@@ -117,11 +121,12 @@ function Field() {
       uMouse: { value: new THREE.Vector2(0, 0) },
       uAspect: { value: 1 },
       uReduced: { value: reduced ? 1 : 0 },
+      uLight: { value: light ? 1 : 0 },
       uPixelRatio: {
         value: typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1,
       },
     }),
-    [reduced],
+    [reduced, light],
   );
 
   useEffect(() => {
@@ -158,21 +163,22 @@ function Field() {
         fragmentShader={fragmentShader}
         transparent
         depthWrite={false}
-        blending={THREE.AdditiveBlending}
+        blending={light ? THREE.NormalBlending : THREE.AdditiveBlending}
       />
     </points>
   );
 }
 
-export default function GoldField() {
+export default function GoldField({ light = false }: { light?: boolean }) {
   return (
     <Canvas
+      key={light ? 'light' : 'dark'}
       style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       camera={{ position: [0, 0, 5], fov: 60 }}
     >
-      <Field />
+      <Field light={light} />
     </Canvas>
   );
 }
