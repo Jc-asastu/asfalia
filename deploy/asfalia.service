@@ -13,9 +13,11 @@ Wants=network-online.target
 Type=simple
 User=%i
 WorkingDirectory=/opt/asfalia
-# Produccion: latido diario, ventana de 30 dias (cadencia GENIUS Act)
+# La clave debe ser la misma usada en el constructor. El instalador crea este
+# archivo con permisos de root; systemd lo lee antes de bajar privilegios.
+EnvironmentFile=/etc/asfalia/asfalia.env
+# Produccion: latido diario. La vigencia ya quedo fijada en el constructor.
 Environment=ASFALIA_HEARTBEAT_SEC=86400
-Environment=ASFALIA_VALIDITY=2592000
 Environment=PORT=3300
 ExecStartPre=/usr/bin/docker compose -f /opt/asfalia/docker-compose.yml up -d proof-server
 ExecStart=/usr/bin/npm run api

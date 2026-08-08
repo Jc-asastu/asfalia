@@ -10,6 +10,20 @@
 set -euo pipefail
 URL="${1:-http://localhost:3300/console}"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_DIR="$HOME/.config/asfalia"
+ENV_FILE="$ENV_DIR/env"
+
+if [ "$URL" = "http://localhost:3300/console" ] && [ ! -f "$ENV_FILE" ]; then
+  OWNER_SECRET="${ASFALIA_OWNER_SECRET:-}"
+  if ! [[ "$OWNER_SECRET" =~ ^[0-9a-fA-F]{64}$ ]]; then
+    echo "Falta ASFALIA_OWNER_SECRET (64 caracteres hex), la misma clave usada al desplegar." >&2
+    exit 1
+  fi
+  mkdir -p "$ENV_DIR"
+  chmod 700 "$ENV_DIR"
+  umask 077
+  printf 'ASFALIA_OWNER_SECRET=%s\n' "$OWNER_SECRET" > "$ENV_FILE"
+fi
 
 # — icono
 mkdir -p "$HOME/.local/share/icons" "$HOME/.local/share/applications"
@@ -54,8 +68,8 @@ if [ "$URL" = "http://localhost:3300/console" ] && command -v node >/dev/null; t
 Description=Asfalia entity daemon (solvency heartbeat)
 [Service]
 WorkingDirectory=$HERE
+EnvironmentFile=$ENV_FILE
 Environment=ASFALIA_HEARTBEAT_SEC=86400
-Environment=ASFALIA_VALIDITY=2592000
 ExecStart=$(command -v npm) run api
 Restart=always
 RestartSec=15

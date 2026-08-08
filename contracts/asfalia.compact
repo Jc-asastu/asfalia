@@ -37,6 +37,24 @@ export ledger assetsCommitment: Bytes<32>;
 // circuito uso para el veredicto es la suma de EXACTAMENTE estas hojas.
 export ledger liabilitiesRoot: Bytes<32>;
 
+// Autoridad y politica fijadas al desplegar. `ownerKey` es solamente el hash
+// de una clave que nunca se publica; la tolerancia y la vigencia ya no son
+// parametros elegidos por quien llama a `attest`.
+export sealed ledger ownerKey: Bytes<32>;
+export sealed ledger attestTolerance: Uint<32>;
+export sealed ledger certificateValidity: Uint<32>;
+
+constructor(_ownerSecret: Bytes<32>, _attestTolerance: Uint<32>, _certificateValidity: Uint<32>) {
+  assert(_attestTolerance > 0, "attest tolerance must be positive");
+  assert(_attestTolerance <= 3600, "attest tolerance exceeds one hour");
+  assert(_certificateValidity > 0, "certificate validity must be positive");
+  assert(_certificateValidity <= 2678400, "certificate validity exceeds 31 days");
+
+  ownerKey = disclose(ownerKeyFor(_ownerSecret));
+  attestTolerance = disclose(_attestTolerance);
+  certificateValidity = disclose(_certificateValidity);
+}
+
 // --- Estado privado (witnesses, viven en la maquina del prover) ---------------
 
 // Una cuenta de cliente: identificador, saldo en centavos y salt de cegado.
@@ -77,12 +95,20 @@ circuit merkleRoot16(l: Vector<16, Bytes<32>>): Bytes<32> {
   return pairHash(c[0], c[1]);
 }
 
+// Dominio propio: la misma clave no produce el mismo identificador en otro
+// contrato que tambien use persistentHash.
+circuit ownerKeyFor(_secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "asfalia:owner:"), _secret]);
+}
+
 // --- Circuito principal -------------------------------------------------------
 
 // `now` lo declara el prover, pero el circuito lo valida contra el tiempo de
-// bloque real: debe cumplirse  now <= blockTime < now + tolerance.
-// tolerance y validitySecs en segundos.
-export circuit attest(now: Uint<64>, tolerance: Uint<32>, validitySecs: Uint<32>): [] {
+// bloque real: debe cumplirse now <= blockTime < now + attestTolerance.
+// Solo quien conoce la clave privada fijada al desplegar puede emitir.
+export circuit attest(_ownerSecret: Bytes<32>, now: Uint<64>): [] {
+  assert(ownerKeyFor(_ownerSecret) == ownerKey, "only the Asfalia owner can attest");
+
   const assets = assetBalances();
   const nonce = assetsNonce();
   const clients = clientAccounts();
@@ -109,10 +135,10 @@ export circuit attest(now: Uint<64>, tolerance: Uint<32>, validitySecs: Uint<32>
   // Validacion temporal: el `now` declarado tiene que estar pegado al bloque.
   const claimed = disclose(now);
   assert(blockTimeGte(claimed), "attest timestamp is in the future");
-  assert(blockTimeLt(claimed + disclose(tolerance) as Uint<64>), "attest timestamp is stale");
+  assert(blockTimeLt(claimed + attestTolerance as Uint<64>), "attest timestamp is stale");
 
   attestedAt = claimed;
-  validUntil = (claimed + disclose(validitySecs)) as Uint<64>;
+  validUntil = (claimed + certificateValidity) as Uint<64>;
   verdict = disclose(totalAssets >= totalLiabilities);
 }
 
