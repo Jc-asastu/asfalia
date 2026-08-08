@@ -1,7 +1,9 @@
 # Asfalia — Proof of Solvency that expires
 
-> In Sumerian administration, the *asfalia* was the collector-inspector: the official who
-> verified what was declared. Five thousand years later, the role is a ZK circuit.
+> *Asfalia* comes from the Greek [**ασφάλεια** (*asfáleia*)](https://www.greek-language.gr/greekLang/modern_greek/tools/lexica/triantafyllides/search.html?lq=%CE%B1%CF%83%CF%86%CE%AC%CE%BB%CE%B5%CE%B9%CE%B1):
+> safety, security, assurance. In finance, that promise becomes solvency — confidence
+> that assets can cover obligations. Asfalia makes that confidence private, verifiable,
+> and time-bound.
 
 **Asfalia lets an entity (exchange, fintech, treasury) prove that its assets cover its
 liabilities without revealing a single number — and the certificate it produces

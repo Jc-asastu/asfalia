@@ -3,7 +3,7 @@ pragma language_version >= 0.23;
 import CompactStandardLibrary;
 
 // ============================================================================
-// Enku — proof of solvency that expires.
+// Asfalia — proof of solvency that expires.
 //
 // Estado publico (ledger): veredicto, tiempos, commitment de activos y la
 // raiz Merkle de pasivos. Estado privado (witnesses): los libros completos.
