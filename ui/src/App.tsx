@@ -77,6 +77,13 @@ const isConsole = window.location.pathname.startsWith('/console');
 
 function Shell() {
   const { t, lang, setLang } = useI18n();
+  const [theme, setTheme] = useState<'dark' | 'light'>(
+    () => (localStorage.getItem('asfalia-theme') as 'dark' | 'light') || 'dark',
+  );
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('asfalia-theme', theme);
+  }, [theme]);
   const [stage, setStage] = useState<Stage>('landing');
   const [subrole, setSubrole] = useState<Subrole | null>(null);
   const [view, setView] = useState<View>(isConsole ? 'treasury' : 'auditor');
@@ -157,6 +164,14 @@ function Shell() {
         </h1>
         <div className="mast-right">
           <div className="lang-switch">
+            <button
+              className="theme-btn"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label={theme === 'dark' ? t.theme_light : t.theme_dark}
+              title={theme === 'dark' ? t.theme_light : t.theme_dark}
+            >
+              {theme === 'dark' ? '☀' : '☾'}
+            </button>
             {langBtn('en', 'EN')}·{langBtn('es', 'ES')}
             {!isConsole && stage !== 'landing' && (
               <button className="lang-btn role-change" onClick={exit}>
