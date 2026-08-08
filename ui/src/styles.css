@@ -425,12 +425,14 @@ button { font: inherit; cursor: pointer; }
   display: block; margin-top: 22px; font-size: 11px;
   letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold);
 }
-.portal-card select {
+.portal-card select,
+.portal-card input {
   margin-top: 8px; width: 100%; max-width: 440px;
   font: inherit; padding: 9px 11px;
   border: 1px solid var(--gold-dim); background: var(--black-lighter);
   color: var(--white); border-radius: 2px;
 }
+.portal-card form .attest-btn { display: block; margin-top: 22px; }
 .portal-busy { margin-top: 16px; color: var(--gold); font-size: 12px; }
 .portal-result { margin-top: 24px; border: 1px solid var(--black-lighter); padding: 20px 22px; }
 .portal-result.ok { border-color: var(--green); box-shadow: 0 0 24px rgba(90, 154, 90, 0.12); }

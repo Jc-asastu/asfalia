@@ -5,6 +5,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import type { ClientAccount, AsfaliaPrivateState } from "./witnesses";
 
@@ -37,9 +38,17 @@ export function loadUsers(): DemoUser[] {
   return JSON.parse(fs.readFileSync(usersFile(), "utf8")).users;
 }
 
+/** Public, deterministic binding between the human account and the private leaf id. */
+export function accountIdHex(account: string): string {
+  return createHash("sha256").update(`asfalia:account:${account}`, "utf8").digest("hex");
+}
+
 const hex = (h: string) => Uint8Array.from(Buffer.from(h, "hex"));
 
 export function toClientAccount(u: DemoUser): ClientAccount {
+  if (u.idHex.toLowerCase() !== accountIdHex(u.account)) {
+    throw new Error(`idHex de ${u.account} no esta ligado deterministicamente a la cuenta`);
+  }
   return { id: hex(u.idHex), balance: BigInt(u.cents), salt: hex(u.saltHex) };
 }
 

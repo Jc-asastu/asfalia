@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getState, getBook, type ServerState } from './api';
+import { getState, type ServerState } from './api';
 import { Certificate } from './Certificate';
 import { Treasury } from './Treasury';
 import { Portal } from './Portal';
@@ -80,7 +80,6 @@ function Shell() {
   const [stage, setStage] = useState<Stage>('landing');
   const [subrole, setSubrole] = useState<Subrole | null>(null);
   const [view, setView] = useState<View>(isConsole ? 'treasury' : 'auditor');
-  const [accounts, setAccounts] = useState<{ account: string; name: string }[]>([]);
   const [state, setState] = useState<ServerState | null>(null);
   // Reloj: segundos epoch del server + tick local entre polls.
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
@@ -97,7 +96,6 @@ function Shell() {
       } catch { /* server reiniciando: el proximo poll lo levanta */ }
     };
     poll();
-    getBook().then((b) => setAccounts(b.users.map(({ account, name }) => ({ account, name })))).catch(() => {});
     const p = setInterval(poll, 2000);
     const tk = setInterval(() => setNow(Math.floor(Date.now() / 1000) + offset.current), 1000);
     return () => { alive = false; clearInterval(p); clearInterval(tk); };
@@ -137,9 +135,12 @@ function Shell() {
 
   const renderView = (v: View | undefined) =>
     v === 'auditor' ? (
-      <Certificate state={state} now={now} />
+      <Certificate state={state} now={now} canSettle={state?.capabilities.settlement ?? false} />
     ) : v === 'portal' ? (
-      <Portal accounts={accounts} />
+      <Portal
+        onChainRoot={state?.ledger?.liabilitiesRoot ?? null}
+        tokenRequired={state?.capabilities.clientTokenRequired ?? true}
+      />
     ) : v === 'history' ? (
       <History state={state} now={now} />
     ) : v === 'scanner' ? (
@@ -209,7 +210,9 @@ function Shell() {
           <main className="tabpanel">{renderView(activeView)}</main>
           {subrole === 'auditor' && (
             <GuidedTour
-              steps={AUDITOR_TOUR}
+              steps={state?.capabilities.settlement
+                ? AUDITOR_TOUR
+                : AUDITOR_TOUR.filter((step) => step.target !== 'actions')}
               storageKey="asfalia.tour.auditor.v1"
               gateTitle="ASFALIA"
               gateBody={t.tour_gate_auditor}

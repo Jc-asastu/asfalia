@@ -5,7 +5,15 @@ import { useI18n, phaseText, dateLocale } from './i18n';
 type Freshness = 'none' | 'valid' | 'grace' | 'expired';
 
 /** La vista del auditor: un acta. Veredicto, vigencia, commitments. Nada mas existe. */
-export function Certificate({ state, now }: { state: ServerState | null; now: number }) {
+export function Certificate({
+  state,
+  now,
+  canSettle,
+}: {
+  state: ServerState | null;
+  now: number;
+  canSettle: boolean;
+}) {
   const { t, lang } = useI18n();
   const [thump, setThump] = useState(false);
   const lastAttest = useRef<string | null>(null);
@@ -120,16 +128,18 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
 
         <div className="cert-foot">
           <span className="verified">{t.verified_line}</span>
-          <div style={{ display: 'flex', gap: '10px' }} data-tour="actions">
-            <button
-              className="reveal-btn"
-              disabled={!hasAttest || (job?.running ?? false)}
-              onClick={() => postSettle()}
-              title={t.accept_cert_hint}
-            >
-              {t.accept_cert}
-            </button>
-          </div>
+          {canSettle && (
+            <div style={{ display: 'flex', gap: '10px' }} data-tour="actions">
+              <button
+                className="reveal-btn"
+                disabled={!hasAttest || (job?.running ?? false)}
+                onClick={() => postSettle()}
+                title={t.accept_cert_hint}
+              >
+                {t.accept_cert}
+              </button>
+            </div>
+          )}
         </div>
 
         {job?.kind === 'settle' && (
