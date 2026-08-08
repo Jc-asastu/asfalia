@@ -4,7 +4,7 @@
 import { WebSocket } from 'ws';
 
 // Midnight SDK imports
-import { resolveNetwork, getOrCreateWallet, formatWalletBackupNotice } from './network';
+import { resolveNetwork, getOrCreateWallet } from './network';
 // unshieldedToken is re-exported from ./wallet (originally @midnight-ntwrk/midnight-js-protocol/ledger).
 import { createWallet, persistWalletState, unshieldedToken } from './wallet';
 
@@ -17,10 +17,6 @@ globalThis.WebSocket = WebSocket;
 const { network, config: networkConfig } = resolveNetwork();
 const WALLET = getOrCreateWallet(network);
 const SEED = WALLET.seed;
-{
-  const notice = formatWalletBackupNotice(WALLET, network);
-  if (notice) console.log(notice);
-}
 
 // ─── Main ──────────────────────────────────────────────────────────────────────
 

@@ -29,13 +29,13 @@ export function loadClientTokenRegistry(
 
   const registry = new Map<string, string>();
   for (const [token, account] of Object.entries(parsed as Record<string, unknown>)) {
-    if (token.length < 16 || token.length > 256) {
-      throw new Error('every client access token must contain between 16 and 256 characters');
+    if (token.length < 32 || token.length > 256 || token !== token.trim() || /\s/.test(token)) {
+      throw new Error('every client access token must contain 32-256 non-whitespace characters');
     }
-    if (typeof account !== 'string' || !account.trim()) {
+    if (typeof account !== 'string' || !account.trim() || account.length > 200 || account !== account.trim()) {
       throw new Error('every client access token must map to a non-empty account');
     }
-    registry.set(tokenDigest(token), account.trim());
+    registry.set(tokenDigest(token), account);
   }
   return registry;
 }

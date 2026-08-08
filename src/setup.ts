@@ -2,7 +2,8 @@
 // `docker compose up -d --wait && npm run compile && npm run deploy` so
 // we can branch on --network and forward it to deploy.
 import { spawnSync } from 'node:child_process';
-import { resolveNetwork, setActiveNetwork, parseNetworkFlag } from './network';
+import { getOrCreateWallet, resolveNetwork, setActiveNetwork, parseNetworkFlag } from './network';
+import { loadPrivateStatePassword } from './runtime-secrets';
 
 function run(cmd: string, args: string[]): void {
   const r = spawnSync(cmd, args, { stdio: 'inherit', shell: false });
@@ -18,7 +19,11 @@ async function main(): Promise<void> {
   if (flag) setActiveNetwork(flag);
   const { network, config } = resolveNetwork({ argv });
 
-  process.stdout.write(`\n→ Setting up solvency on network: ${network}\n\n`);
+  // Fail before starting containers or compiling if public-network secrets are absent.
+  getOrCreateWallet(network);
+  loadPrivateStatePassword(network);
+
+  process.stdout.write(`\n→ Setting up Asfalia on network: ${network}\n\n`);
 
   // 1. Bring up only the services this network needs.
   run('docker', ['compose', 'up', '-d', '--wait', ...config.composeServices]);

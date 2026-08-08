@@ -30,11 +30,6 @@ type Stage = 'landing' | 'entities' | 'app';
 type Subrole = 'client' | 'auditor';
 type View = 'treasury' | 'auditor' | 'portal' | 'history' | 'scanner';
 
-const SUBROLE_VIEWS: Record<Subrole, View[]> = {
-  auditor: ['auditor', 'history', 'scanner'],
-  client: ['portal'],
-};
-
 const AUDITOR_TOUR: TourStep[] = [
   {
     target: 'stamp', view: 'auditor',
@@ -103,7 +98,7 @@ function Shell() {
 
   const pickSubrole = (r: Subrole) => {
     setSubrole(r);
-    setView(SUBROLE_VIEWS[r][0]);
+    setView(r === 'client' ? 'portal' : 'auditor');
     setStage('app');
   };
   const exit = () => { setSubrole(null); setStage('landing'); };
@@ -126,11 +121,18 @@ function Shell() {
     scanner: t.tab_scanner,
   };
 
+  const auditorViews: View[] = [
+    'auditor',
+    ...(state?.capabilities.history ? ['history' as const] : []),
+    ...(state?.capabilities.scanner ? ['scanner' as const] : []),
+  ];
   const views: View[] = isConsole
-    ? ['treasury', 'history']
-    : subrole
-      ? SUBROLE_VIEWS[subrole]
-      : [];
+    ? ['treasury', ...(state?.capabilities.history ? ['history' as const] : [])]
+    : subrole === 'auditor'
+      ? auditorViews
+      : subrole === 'client'
+        ? ['portal']
+        : [];
   const activeView = views.includes(view) ? view : views[0];
 
   const renderView = (v: View | undefined) =>
@@ -210,9 +212,12 @@ function Shell() {
           <main className="tabpanel">{renderView(activeView)}</main>
           {subrole === 'auditor' && (
             <GuidedTour
-              steps={state?.capabilities.settlement
-                ? AUDITOR_TOUR
-                : AUDITOR_TOUR.filter((step) => step.target !== 'actions')}
+              steps={AUDITOR_TOUR.filter((step) => {
+                if (step.target === 'actions') return state?.capabilities.settlement;
+                if (step.view === 'history') return state?.capabilities.history;
+                if (step.view === 'scanner') return state?.capabilities.scanner;
+                return true;
+              })}
               storageKey="asfalia.tour.auditor.v1"
               gateTitle="ASFALIA"
               gateBody={t.tour_gate_auditor}

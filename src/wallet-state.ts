@@ -41,10 +41,15 @@ function statePath(network: NetworkId, kind: ChildKind, opts: FsOptions = {}): s
 }
 
 function atomicWrite(file: string, content: string): void {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   const tmp = `${file}.tmp-${process.pid}-${Date.now()}`;
-  fs.writeFileSync(tmp, content);
-  fs.renameSync(tmp, file);
+  try {
+    fs.writeFileSync(tmp, content, { mode: 0o600 });
+    fs.renameSync(tmp, file);
+  } catch (error) {
+    try { fs.rmSync(tmp, { force: true }); } catch { /* best effort */ }
+    throw error;
+  }
 }
 
 interface VersionedState<T> {

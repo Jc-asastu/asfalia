@@ -29,8 +29,8 @@ export function Treasury({ state }: { state: ServerState | null }) {
       .text()
       .then(async (csv) => {
         const r = await importCsv(kind, csv);
-        if (r.error) showMsg(`✕ ${r.error}`);
-        else { setBook(r.book); showMsg(`✓ ${t.import_ok}`); }
+        setBook(r.book);
+        showMsg(`✓ ${t.import_ok}`);
       })
       .catch((err) => showMsg(`✕ ${err?.message ?? err}`));
   };
@@ -62,13 +62,25 @@ export function Treasury({ state }: { state: ServerState | null }) {
 
   const startEdit = (side: 'assets' | 'clients', index: number, cents: string) => {
     setEditing({ side, index });
-    setDraft((BigInt(cents) / 100n).toString());
+    const amount = BigInt(cents);
+    setDraft(`${amount / 100n}.${(amount % 100n).toString().padStart(2, '0')}`);
   };
   const commitEdit = async () => {
-    if (!editing || !/^\d+$/.test(draft)) return setEditing(null);
-    const r = await putBook(editing.side, editing.index, `${draft}00`);
-    if (r.book) setBook(r.book);
-    setEditing(null);
+    if (!editing) return;
+    const normalized = draft.trim().replace(',', '.');
+    if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) {
+      showMsg(`✕ ${t.invalid_expected_balance}`);
+      return;
+    }
+    const [whole, fraction = ''] = normalized.split('.');
+    const cents = BigInt(`${whole}${fraction.padEnd(2, '0')}`).toString();
+    try {
+      const r = await putBook(editing.side, editing.index, cents);
+      if (r.book) setBook(r.book);
+      setEditing(null);
+    } catch (error: any) {
+      showMsg(`✕ ${error?.message ?? error}`);
+    }
   };
 
   const amountCell = (side: 'assets' | 'clients', i: number, cents: string, label: string) =>
@@ -78,7 +90,10 @@ export function Treasury({ state }: { state: ServerState | null }) {
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commitEdit}
-        onKeyDown={(e) => e.key === 'Enter' && commitEdit()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') setEditing(null);
+        }}
         aria-label={`${t.edit_amount}: ${label}`}
       />
     ) : (

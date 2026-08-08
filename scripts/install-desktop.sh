@@ -11,18 +11,33 @@ set -euo pipefail
 URL="${1:-http://localhost:3300/console}"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_DIR="$HOME/.config/asfalia"
-ENV_FILE="$ENV_DIR/env"
+ENV_FILE="$ENV_DIR/asfalia.env"
 
-if [ "$URL" = "http://localhost:3300/console" ] && [ ! -f "$ENV_FILE" ]; then
-  OWNER_SECRET="${ASFALIA_OWNER_SECRET:-}"
-  if ! [[ "$OWNER_SECRET" =~ ^[0-9a-fA-F]{64}$ ]]; then
-    echo "Falta ASFALIA_OWNER_SECRET (64 caracteres hex), la misma clave usada al desplegar." >&2
+case "$URL" in
+  http://*|https://*) ;;
+  *) echo "URL invalida: use http:// o https://" >&2; exit 1 ;;
+esac
+if [[ "$URL" == *$'\n'* || "$URL" == *$'\r'* || "$URL" == *' '* ]]; then
+  echo "URL invalida: no puede contener espacios ni saltos de linea" >&2
+  exit 1
+fi
+
+if [ "$URL" = "http://localhost:3300/console" ] && command -v node >/dev/null; then
+  if [ ! -f "$HERE/contracts/managed/asfalia/contract/index.js" ]; then
+    echo "Falta el contrato compilado. Ejecuta 'npm run compile' en Codespaces." >&2
     exit 1
   fi
-  mkdir -p "$ENV_DIR"
-  chmod 700 "$ENV_DIR"
-  umask 077
-  printf 'ASFALIA_OWNER_SECRET=%s\n' "$OWNER_SECRET" > "$ENV_FILE"
+  if [ ! -f "$ENV_FILE" ]; then
+    mkdir -p "$ENV_DIR"
+    chmod 700 "$ENV_DIR"
+    echo "Falta $ENV_FILE con los secretos del daemon." >&2
+    exit 1
+  fi
+  if ! grep -Eq '^ASFALIA_OWNER_SECRET=[0-9a-fA-F]{64}$' "$ENV_FILE"; then
+    echo "$ENV_FILE debe contener ASFALIA_OWNER_SECRET=<64 caracteres hex>." >&2
+    exit 1
+  fi
+  chmod 600 "$ENV_FILE"
 fi
 
 # — icono

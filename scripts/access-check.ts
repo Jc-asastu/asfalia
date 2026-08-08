@@ -9,7 +9,7 @@ const expect = (condition: boolean, message: string) => {
   }
 };
 
-const token = '0123456789abcdef';
+const token = '0123456789abcdef0123456789abcdef';
 const registry = loadClientTokenRegistry(JSON.stringify({ [token]: 'AX-2026-0001' }));
 expect(
   clientAccountFromRequest(

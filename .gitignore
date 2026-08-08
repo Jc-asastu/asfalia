@@ -21,8 +21,6 @@ contracts/managed/
 # Deployment info
 deployment.json
 
-# Wallet seed (sensitive)
-
 # OS generated files
 .DS_Store
 Thumbs.db
@@ -53,7 +51,7 @@ coverage/
 tmp/
 temp/
 
-# Midnight network state (per-network seeds, deploy addresses)
+# Midnight network state (v2: deployment metadata; migrate legacy v1 wallet secrets)
 .midnight-state.json
 
 # Midnight wallet sync state (per-network serialized wallet state cache)

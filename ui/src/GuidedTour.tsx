@@ -173,7 +173,26 @@ export function GuidedTour({
   }
 
   if (phase === 'steps' && currentStep) {
-    if (!hole) return <div className="tour-backdrop" />; // montando la vista destino
+    if (!hole) {
+      const isLast = stepIndex === steps.length - 1;
+      return (
+        <div className="tour-backdrop">
+          <div className="tour-modal" role="dialog" aria-modal="true">
+            <p className="tour-counter">
+              {String(stepIndex + 1).padStart(2, '0')} / {String(steps.length).padStart(2, '0')}
+            </p>
+            <h2 className="tour-title" aria-live="polite">{currentStep.title(t)}</h2>
+            <p className="tour-body">{currentStep.body(t)}</p>
+            <div className="tour-actions">
+              <button type="button" className="tour-text-btn" onClick={closeTour}>{t.tour_skip}</button>
+              <button type="button" className="attest-btn tour-primary" onClick={advance} ref={primaryRef}>
+                {isLast ? t.tour_finish : t.tour_next}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
     const padded: Rect = {
       top: hole.top - PAD, left: hole.left - PAD,
       width: hole.width + PAD * 2, height: hole.height + PAD * 2,
