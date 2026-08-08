@@ -20,6 +20,7 @@
     "proof-server:stop": "docker compose down",
     "clean": "rm -rf contracts/managed .midnight-state.json .midnight-wallet-state",
     "test": "npx tsx scripts/circuit-check.ts",
+    "test:access": "node --experimental-strip-types scripts/access-check.ts",
     "test:e2e": "tsx scripts/e2e-check.ts"
   },
   "dependencies": {

@@ -1,12 +1,12 @@
 /**
  * API de Asfalia — http nativo de Node, cero dependencias nuevas.
  *
- * Mantiene UNA conexion viva al contrato (wallet sync es caro) y expone:
- *   GET  /api/state          estado publico + job de attest en curso
- *   GET  /api/book           libro privado (solo lo ve la entidad: corre en su maquina)
- *   PUT  /api/book           edita un item {side, index, cents} — momento adversarial
- *   POST /api/attest         dispara attest (async; el estado se sigue por /api/state)
- *   GET  /*                  dashboard estatico (ui/dist)
+ * Mantiene UNA conexion viva al contrato (wallet sync es caro) y abre dos
+ * superficies separadas:
+ *   PORT (127.0.0.1)          consola privada + API administrativa
+ *   ASFALIA_PUBLIC_PORT       portal opcional, sin libros ni transacciones
+ * Las pruebas del portal publico requieren un token ligado a una unica cuenta
+ * mediante ASFALIA_CLIENT_TOKENS.
  */
 import * as http from 'node:http';
 import { randomBytes } from 'node:crypto';
@@ -15,14 +15,39 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectAsfalia, type AsfaliaConnection } from '../src/contract';
 import {
-  loadEntityBook, loadUsers, toPrivateState, toClientAccount, bookFile, usersFile,
+  accountIdHex, loadEntityBook, loadUsers, toPrivateState, toClientAccount, bookFile, usersFile,
   type EntityBook, type DemoUser,
 } from '../src/entity-data';
 import { PRIVATE_STATE_ID } from '../src/contract';
-import { inclusionProof, verifyInclusion, merkleRoot } from '../src/merkle';
+import { inclusionProof } from '../src/merkle';
 import { computeScore } from '../src/score';
+import {
+  clientAccountFromRequest,
+  loadClientTokenRegistry,
+  type ServerScope,
+} from './access';
 
 const PORT = Number(process.env.PORT ?? 3300);
+const ADMIN_HOST = process.env.ASFALIA_ADMIN_HOST?.trim() || '127.0.0.1';
+const PUBLIC_PORT = process.env.ASFALIA_PUBLIC_PORT
+  ? Number(process.env.ASFALIA_PUBLIC_PORT)
+  : null;
+const PUBLIC_HOST = process.env.ASFALIA_PUBLIC_HOST?.trim() || '0.0.0.0';
+const CLIENT_TOKENS = loadClientTokenRegistry();
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
+
+if (!LOOPBACK_HOSTS.has(ADMIN_HOST)) {
+  throw new Error('ASFALIA_ADMIN_HOST must be a loopback address (127.0.0.1, ::1 or localhost)');
+}
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  throw new Error('PORT must be an integer between 1 and 65535');
+}
+if (PUBLIC_PORT !== null && (!Number.isInteger(PUBLIC_PORT) || PUBLIC_PORT < 1 || PUBLIC_PORT > 65535)) {
+  throw new Error('ASFALIA_PUBLIC_PORT must be an integer between 1 and 65535');
+}
+if (PUBLIC_PORT === PORT) {
+  throw new Error('ASFALIA_PUBLIC_PORT must be different from the private console PORT');
+}
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UI_DIST = path.resolve(__dirname, '..', 'ui', 'dist');
 const LOG_FILE = process.env.ASFALIA_LOG ?? path.resolve(__dirname, '..', 'data', 'attest-log.json');
@@ -164,21 +189,62 @@ const MIME: Record<string, string> = {
 
 function json(res: http.ServerResponse, status: number, body: unknown) {
   const s = JSON.stringify(body, (_, v) => (typeof v === 'bigint' ? v.toString() : v));
-  res.writeHead(status, { 'content-type': 'application/json' });
+  res.writeHead(status, {
+    'content-type': 'application/json',
+    'cache-control': 'no-store',
+  });
   res.end(s);
+}
+
+const MAX_BODY_BYTES = 1_000_000;
+
+class HttpError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+  }
 }
 
 function readBody(req: http.IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', (c) => (data += c));
-    req.on('end', () => { try { resolve(data ? JSON.parse(data) : {}); } catch (e) { reject(e); } });
+    let bytes = 0;
+    let tooLarge = false;
+    req.on('data', (chunk: Buffer) => {
+      bytes += chunk.length;
+      if (bytes > MAX_BODY_BYTES) {
+        tooLarge = true;
+        data = '';
+      } else if (!tooLarge) {
+        data += chunk.toString('utf8');
+      }
+    });
+    req.on('end', () => {
+      if (tooLarge) return reject(new HttpError(413, 'request body too large'));
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch {
+        reject(new HttpError(400, 'invalid JSON body'));
+      }
+    });
   });
 }
 
 // ── Rutas ──────────────────────────────────────────────────────────────────────
 
-async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
+async function handleApi(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  url: URL,
+  scope: ServerScope,
+) {
+  if (
+    scope === 'admin' &&
+    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method ?? '') &&
+    req.headers['x-asfalia-console'] !== '1'
+  ) {
+    return json(res, 403, { error: 'private console request required' });
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/state') {
     const ledger = await conn.readLedger();
     return json(res, 200, {
@@ -186,11 +252,17 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
       contractAddress: conn.deployment.address,
       entity: book.entity,
       ledger, // verdict, attestedAt (epoch s), balancesCommitment — nada mas existe
-      attest: job,
+      attest: scope === 'admin' ? job : { ...job, error: null },
       score: computeScore(history, HEARTBEAT_SEC || null, Date.now()),
       heartbeat: HEARTBEAT_SEC
         ? { sec: HEARTBEAT_SEC, nextAt: nextBeatAt ? Math.floor(nextBeatAt / 1000) : null }
         : null,
+      capabilities: {
+        entityConsole: scope === 'admin',
+        settlement: scope === 'admin',
+        clientProof: scope === 'admin' || CLIENT_TOKENS.size > 0,
+        clientTokenRequired: scope === 'public',
+      },
       now: Math.floor(Date.now() / 1000),
     });
   }
@@ -198,7 +270,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   if (req.method === 'GET' && url.pathname === '/api/history') {
     return json(res, 200, {
       heartbeatSec: HEARTBEAT_SEC || null,
-      entries: history,
+      entries: scope === 'admin' ? history : history.map((entry) => ({ ...entry, error: null })),
       score: computeScore(history, HEARTBEAT_SEC || null, Date.now()),
     });
   }
@@ -264,13 +336,13 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     return json(res, 200, await r.json());
   }
 
-  if (req.method === 'GET' && url.pathname === '/api/book') {
+  if (scope === 'admin' && req.method === 'GET' && url.pathname === '/api/book') {
     // Solo la entidad ve esto: el server corre en SU maquina. El auditor
     // accede al certificado, que no contiene un solo numero.
     return json(res, 200, { ...book, users });
   }
 
-  if (req.method === 'PUT' && url.pathname === '/api/book') {
+  if (scope === 'admin' && req.method === 'PUT' && url.pathname === '/api/book') {
     // Edita un activo o el saldo de una cuenta de cliente — el momento
     // adversarial del demo: mentir un numero y ver romperse la matematica.
     const { side, index, cents } = await readBody(req);
@@ -291,14 +363,14 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     return json(res, 200, { ok: true, book: { ...book, users } });
   }
 
-  if (req.method === 'POST' && url.pathname === '/api/book/import') {
+  if (scope === 'admin' && req.method === 'POST' && url.pathname === '/api/book/import') {
     // Carga de libros por CSV — el formato que exporta cualquier ERP o DB.
     // assets:  label,amount_usd            (8 filas)
     // clients: account,name,amount_usd     (16 filas)
     // Parser RFC 4180 minimo: campos entrecomillados (nombres con comas,
-    // decimales con coma) y comillas escapadas. Los ids y salts los genera
-    // el daemon; una cuenta existente conserva su salt (continuidad de las
-    // pruebas de inclusion del cliente).
+    // decimales con coma) y comillas escapadas. El id se deriva de la cuenta;
+    // los salts los genera el daemon y una cuenta existente conserva el suyo
+    // (continuidad de las pruebas de inclusion del cliente).
     const { kind, csv } = await readBody(req);
     if (!['assets', 'clients'].includes(kind) || typeof csv !== 'string') {
       return json(res, 400, { error: 'kind assets|clients y csv (texto)' });
@@ -379,7 +451,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
             account: r[ac],
             name: r[nc],
             cents: toCents(r[am]),
-            idHex: existing?.idHex ?? randomBytes(32).toString('hex'),
+            idHex: accountIdHex(r[ac]),
             saltHex: existing?.saltHex ?? randomBytes(32).toString('hex'),
           };
         });
@@ -406,33 +478,30 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     // Prueba de inclusion para una cuenta: la entidad se la entrega a SU
     // cliente (en produccion, autenticado). Contiene el saldo propio y el
     // camino de hermanos — jamas el saldo de otro.
-    const account = url.searchParams.get('account');
+    const requestedAccount = url.searchParams.get('account');
+    const account = scope === 'admin'
+      ? requestedAccount
+      : clientAccountFromRequest(req, CLIENT_TOKENS);
+    if (scope === 'public' && !account) {
+      res.setHeader('www-authenticate', 'Bearer');
+      return json(res, 401, { error: 'invalid client access token' });
+    }
+    if (scope === 'public' && requestedAccount && requestedAccount !== account) {
+      return json(res, 403, { error: 'access token does not authorize that account' });
+    }
+    if (!account) return json(res, 400, { error: 'account is required' });
     const idx = users.findIndex((u) => u.account === account);
     if (idx < 0) return json(res, 404, { error: 'cuenta desconocida' });
     const clients = users.map(toClientAccount);
     const proof = await inclusionProof(clients, idx, users[idx].account);
     return json(res, 200, {
-      ...proof,
-      name: users[idx].name,
-      cents: users[idx].cents,
-      localRootHex: await merkleRoot(clients),
+      account: proof.account,
+      path: proof.path,
+      saltHex: users[idx].saltHex,
     });
   }
 
-  if (req.method === 'POST' && url.pathname === '/api/verify-inclusion') {
-    // Verificacion del lado del cliente: camino -> raiz, y la raiz se compara
-    // contra la RAIZ ON-CHAIN. Si la entidad escondio la cuenta, no cierra.
-    const { leafHex, path: proofPath, } = await readBody(req);
-    if (!leafHex || !Array.isArray(proofPath)) return json(res, 400, { error: 'leafHex y path' });
-    const ledger = await conn.readLedger();
-    if (!ledger || !/[^0]/.test(ledger.liabilitiesRoot)) {
-      return json(res, 200, { verified: false, reason: 'no_attest' });
-    }
-    const verified = await verifyInclusion(leafHex, proofPath, ledger.liabilitiesRoot);
-    return json(res, 200, { verified, onChainRoot: ledger.liabilitiesRoot });
-  }
-
-  if (req.method === 'POST' && (url.pathname === '/api/attest' || url.pathname === '/api/settle')) {
+  if (scope === 'admin' && req.method === 'POST' && (url.pathname === '/api/attest' || url.pathname === '/api/settle')) {
     if (job.running) return json(res, 409, { error: 'operacion en curso' });
     void runJob(url.pathname === '/api/attest' ? 'attest' : 'settle');
     return json(res, 202, { started: true });
@@ -451,9 +520,28 @@ function serveSample(res: http.ServerResponse, name: string) {
   fs.createReadStream(file).pipe(res);
 }
 
-function serveStatic(res: http.ServerResponse, urlPath: string) {
-  let file = path.join(UI_DIST, urlPath === '/' ? 'index.html' : urlPath);
-  if (!file.startsWith(UI_DIST)) { res.writeHead(403); return res.end(); }
+function serveStatic(res: http.ServerResponse, urlPath: string, scope: ServerScope) {
+  let decodedPath: string;
+  try {
+    decodedPath = decodeURIComponent(urlPath);
+  } catch {
+    res.writeHead(400);
+    return res.end();
+  }
+  if (decodedPath.includes('\0')) {
+    res.writeHead(400);
+    return res.end();
+  }
+  if (scope === 'public' && decodedPath.startsWith('/console')) {
+    res.writeHead(404);
+    return res.end();
+  }
+  const relativePath = decodedPath === '/' ? 'index.html' : `.${decodedPath}`;
+  let file = path.resolve(UI_DIST, relativePath);
+  if (file !== UI_DIST && !file.startsWith(`${UI_DIST}${path.sep}`)) {
+    res.writeHead(403);
+    return res.end();
+  }
   if (!fs.existsSync(file)) file = path.join(UI_DIST, 'index.html'); // SPA fallback
   if (!fs.existsSync(file)) {
     res.writeHead(200, { 'content-type': 'text/plain' });
@@ -468,19 +556,60 @@ function serveStatic(res: http.ServerResponse, urlPath: string) {
 console.log('  Asfalia API — conectando al contrato…');
 conn = await connectAsfalia((m) => console.log(`  … ${m}`));
 console.log(`  Contrato: ${conn.deployment.address.slice(0, 16)}… (${conn.network})`);
+// El store privado puede sobrevivir reinicios. Los archivos son la fuente
+// operativa elegida por la entidad, asi que se sincronizan antes del heartbeat.
+await syncPrivateState();
 
-http.createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
-  try {
-    if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
-    if (/^\/samples\/(assets|clients)\.csv$/.test(url.pathname)) {
-      return serveSample(res, url.pathname.split('/').pop()!);
+function adminHostHeaderAllowed(host: string | undefined): boolean {
+  if (!host) return false;
+  const hostname = host.startsWith('[')
+    ? host.slice(1, host.indexOf(']'))
+    : host.split(':')[0];
+  return LOOPBACK_HOSTS.has(hostname);
+}
+
+function createHttpServer(scope: ServerScope) {
+  return http.createServer(async (req, res) => {
+    res.setHeader('x-content-type-options', 'nosniff');
+    res.setHeader('x-frame-options', 'DENY');
+    res.setHeader('referrer-policy', 'no-referrer');
+    res.setHeader('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader(
+      'content-security-policy',
+      "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'; " +
+        "img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'",
+    );
+
+    if (scope === 'admin' && !adminHostHeaderAllowed(req.headers.host)) {
+      return json(res, 421, { error: 'private console accepts loopback hosts only' });
     }
-    return serveStatic(res, url.pathname);
-  } catch (e: any) {
-    console.error('  error:', e?.message ?? e);
-    return json(res, 500, { error: e?.message ?? 'error interno' });
-  }
-}).listen(PORT, () => console.log(`  Dashboard: http://localhost:${PORT}\n`));
+
+    const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+    try {
+      if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url, scope);
+      if (/^\/samples\/(assets|clients)\.csv$/.test(url.pathname)) {
+        return serveSample(res, url.pathname.split('/').pop()!);
+      }
+      return serveStatic(res, url.pathname, scope);
+    } catch (e: any) {
+      const status = e instanceof HttpError ? e.status : 500;
+      if (status >= 500) console.error('  error:', e?.message ?? e);
+      return json(res, status, { error: e?.message ?? 'error interno' });
+    }
+  });
+}
+
+createHttpServer('admin').listen(PORT, ADMIN_HOST, () => {
+  console.log(`  Consola privada: http://${ADMIN_HOST}:${PORT}`);
+});
+
+if (PUBLIC_PORT !== null) {
+  createHttpServer('public').listen(PUBLIC_PORT, PUBLIC_HOST, () => {
+    console.log(`  Portal publico: http://${PUBLIC_HOST}:${PUBLIC_PORT}`);
+    console.log(`  Pruebas cliente: ${CLIENT_TOKENS.size} token(s) configurado(s)\n`);
+  });
+} else {
+  console.log('  Portal publico: desactivado (configure ASFALIA_PUBLIC_PORT para habilitarlo)\n');
+}
 
 startHeartbeat();

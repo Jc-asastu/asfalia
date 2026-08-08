@@ -36,6 +36,12 @@ export type ServerState = {
   attest: AttestJob;
   score: Score;
   heartbeat: { sec: number; nextAt: number | null } | null;
+  capabilities: {
+    entityConsole: boolean;
+    settlement: boolean;
+    clientProof: boolean;
+    clientTokenRequired: boolean;
+  };
   now: number; // epoch segundos del server — evita el reloj del cliente
 };
 
@@ -65,12 +71,17 @@ export type Book = {
 
 export type InclusionResponse = {
   account: string;
-  name: string;
-  cents: string;
-  leafHex: string;
+  saltHex: string;
   path: { siblingHex: string; siblingSide: 'left' | 'right' }[];
-  rootHex: string;
 };
+
+async function responseJson<T>(response: Response): Promise<T> {
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof body?.error === 'string' ? body.error : `HTTP ${response.status}`);
+  }
+  return body as T;
+}
 
 export const getState = (): Promise<ServerState> =>
   fetch('/api/state').then((r) => r.json());
@@ -80,13 +91,19 @@ export const getBook = (): Promise<Book> => fetch('/api/book').then((r) => r.jso
 export const putBook = (side: 'assets' | 'clients', index: number, cents: string) =>
   fetch('/api/book', {
     method: 'PUT',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', 'x-asfalia-console': '1' },
     body: JSON.stringify({ side, index, cents }),
-  }).then((r) => r.json());
+  }).then(responseJson);
 
-export const postAttest = () => fetch('/api/attest', { method: 'POST' }).then((r) => r.json());
+export const postAttest = () => fetch('/api/attest', {
+  method: 'POST',
+  headers: { 'x-asfalia-console': '1' },
+}).then(responseJson);
 
-export const postSettle = () => fetch('/api/settle', { method: 'POST' }).then((r) => r.json());
+export const postSettle = () => fetch('/api/settle', {
+  method: 'POST',
+  headers: { 'x-asfalia-console': '1' },
+}).then(responseJson);
 
 export const getHistory = (): Promise<HistoryResponse> =>
   fetch('/api/history').then((r) => r.json());
@@ -122,19 +139,15 @@ export const getScan = (): Promise<ScanResponse> =>
 export const importCsv = (kind: 'assets' | 'clients', csv: string) =>
   fetch('/api/book/import', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', 'x-asfalia-console': '1' },
     body: JSON.stringify({ kind, csv }),
-  }).then((r) => r.json());
+  }).then(responseJson);
 
-export const getInclusion = (account: string): Promise<InclusionResponse> =>
-  fetch(`/api/inclusion?account=${encodeURIComponent(account)}`).then((r) => r.json());
-
-export const postVerifyInclusion = (leafHex: string, path: InclusionResponse['path']) =>
-  fetch('/api/verify-inclusion', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ leafHex, path }),
-  }).then((r) => r.json());
+export const getInclusion = (account: string, accessToken: string): Promise<InclusionResponse> => {
+  const headers: Record<string, string> = {};
+  if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+  return fetch(`/api/inclusion?account=${encodeURIComponent(account)}`, { headers }).then(responseJson);
+};
 
 /** Centavos -> "1.824.500.000,00" (es-AR). */
 export const fmtCents = (cents: string) => {

@@ -118,6 +118,16 @@ npm run attest           # one-shot: real ZK proof -> verdict on-chain
 npm run dashboard        # build UI + serve API on http://localhost:3300
 ```
 
+The entity console always binds to loopback. To expose the read-only auditor and
+client portal, use a separate port and account-scoped client tokens; never proxy
+the private port:
+
+```bash
+ASFALIA_PUBLIC_PORT=8080 \
+ASFALIA_CLIENT_TOKENS='{"replace-with-a-long-random-token":"AX-2026-0001"}' \
+npm run dashboard
+```
+
 Deploying to the public **preview** testnet is one flag:
 `ASFALIA_OWNER_SECRET=<64-hex> npm run setup -- --network preview` (the deploy script
 generates a wallet, prints the faucet URL and waits for funding). Public networks
@@ -133,11 +143,13 @@ The dashboard opens with a **role picker** — the separation is the product
   the heartbeat. No login: possession is authentication.
 - **Auditor / counterparty** (public, read-only) — the stamped certificate with
   its on-chain validity countdown, the heartbeat history (gaps included), and the
-  chain scanner with real block data from the indexer. *Accept certificate*
-  submits `settle()` — the chain accepts or rejects it. *Reveal data* shows,
-  by design, nothing.
-- **Client** — pick an account and verify its Merkle inclusion against the
-  on-chain root: the answer comes from the tree, not from the entity's word.
+  chain scanner with real block data from the indexer. The local demo can submit
+  `settle()` with the entity wallet; a remote counterparty must submit with its own
+  wallet rather than spend through the entity API.
+- **Client** — enter an account, expected balance and its scoped access code. The
+  browser derives the id from the account, rebuilds the leaf with the returned salt,
+  folds the sibling path locally, and compares the result with the on-chain root.
+  No account directory is exposed.
 
 ## Tests
 
