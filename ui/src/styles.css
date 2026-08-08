@@ -941,3 +941,11 @@ button { font: inherit; cursor: pointer; }
 :root[data-theme='light'] .theme-btn { color: #7a8494; text-shadow: none; font-size: 24px; }
 :root[data-theme='light'] .theme-btn:hover { color: #47505c; }
 :root:not([data-theme='light']) .theme-btn:hover { color: #ffe58a; }
+
+/* Boton copiar contrato */
+.copy-btn {
+  background: none; border: 1px solid var(--gold-dim); border-radius: 2px;
+  color: var(--gold); font: inherit; font-size: 11px;
+  padding: 1px 6px; cursor: pointer; vertical-align: 1px;
+}
+.copy-btn:hover { border-color: var(--gold); box-shadow: 0 0 8px var(--gold-glow); }

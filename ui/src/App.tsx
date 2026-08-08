@@ -91,7 +91,16 @@ function Shell() {
   const [state, setState] = useState<ServerState | null>(null);
   // Reloj: segundos epoch del server + tick local entre polls.
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  const [copied, setCopied] = useState(false);
   const offset = useRef(0);
+
+  const copyContract = () => {
+    if (!state) return;
+    navigator.clipboard.writeText(state.contractAddress).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  };
 
   useEffect(() => {
     let alive = true;
@@ -184,7 +193,15 @@ function Shell() {
               <>
                 {t.network}: {state.network}
                 <br />
-                {t.contract} {state.contractAddress.slice(0, 20)}…
+                {t.contract} {state.contractAddress.slice(0, 20)}…{' '}
+                <button
+                  className="copy-btn"
+                  onClick={copyContract}
+                  title={t.copy_contract}
+                  aria-label={t.copy_contract}
+                >
+                  {copied ? '✓' : '⧉'}
+                </button>
               </>
             ) : (
               t.connecting
