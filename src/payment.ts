@@ -21,7 +21,7 @@ const CP_DIR = path.resolve(__dirname, '..', '.cp-state');
 // 1 tNIGHT = 10^6 unidades (verificado: el faucet de 5000 tNIGHT llega como 5.000.000.000)
 export const TNIGHT = 1_000_000n;
 export const PAYMENT_UNITS = 1_500n * TNIGHT; // el pago del demo: 1.500 tNIGHT
-const FUND_UNITS = 30_000n * TNIGHT; // fondeo unico de la contraparte
+const FUND_UNITS = 3_000n * TNIGHT; // fondeo unico (la entidad tiene ~5000; 2x el pago con margen)
 
 const deriveCpSeed = (entitySeed: string) =>
   createHash('sha256').update(`asfalia-counterparty:${entitySeed}`).digest('hex');
