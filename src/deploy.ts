@@ -25,6 +25,7 @@ globalThis.WebSocket = WebSocket;
 
 import { witnesses } from './witnesses';
 import { loadEntityBook, loadUsers, toPrivateState } from './entity-data';
+import { loadContractPolicy, loadOwnerSecret } from './contract-policy';
 
 // Identifier under which this contract's private state is stored.
 // For asfalia this holds the entity's balances + commitment nonce (local only).
@@ -268,6 +269,8 @@ async function main() {
 
   console.log('  Setting up providers...');
   const providers = await createProviders(walletCtx);
+  const ownerSecret = loadOwnerSecret(network);
+  const contractPolicy = loadContractPolicy();
 
   // The wallet's reported DUST balance is a *time-projection* of what its
   // registered NIGHT will eventually generate; the tx-builder spends only
@@ -293,10 +296,15 @@ async function main() {
     try {
       // Midnight.js 4.1.x supplies private state via privateStateId +
       // initialPrivateState: los balances de la entidad + nonce, que quedan
-      // SOLO en el store local (level). args vacio: asfalia no tiene constructor.
+      // SOLO en el store local (level). La clave de autoridad se usa como
+      // argumento privado del constructor y nunca se persiste ni se imprime.
       deployed = await deployContract(providers, {
         compiledContract: compiledContract as any,
-        args: [],
+        args: [
+          ownerSecret,
+          contractPolicy.attestToleranceSeconds,
+          contractPolicy.certificateValiditySeconds,
+        ],
         privateStateId: PRIVATE_STATE_ID,
         initialPrivateState: toPrivateState(loadEntityBook(), loadUsers()),
       });

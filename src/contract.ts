@@ -18,6 +18,7 @@ import { resolveNetwork, getOrCreateWallet, getDeployment } from './network';
 import { createWallet, persistWalletState, type WalletContext } from './wallet';
 import { witnesses } from './witnesses';
 import { loadEntityBook, loadUsers, toPrivateState } from './entity-data';
+import { loadOwnerSecret } from './contract-policy';
 
 // @ts-expect-error Required for wallet sync
 globalThis.WebSocket = WebSocket;
@@ -120,16 +121,14 @@ export async function connectAsfalia(onProgress: (msg: string) => void = () => {
    *  El tiempo de bloque va en SEGUNDOS epoch (verificado en el log del nodo:
    *  tblock=Timestamp(1786118610)). `claimed` retrocede 30s porque el bloque
    *  corre detras del wall-clock; la tolerancia (default 5 min) cubre el slack.
-   *  ASFALIA_NOW / ASFALIA_TOL (segundos) para tests y sondeos. */
-  async function attest(toleranceSec = 5 * 60) {
+   *  ASFALIA_NOW permite sondeos controlados; tolerancia y vigencia quedan
+   *  fijadas en el constructor del contrato y no se eligen en esta llamada. */
+  async function attest() {
     const claimed = process.env.ASFALIA_NOW
       ? BigInt(process.env.ASFALIA_NOW)
       : BigInt(Math.floor(Date.now() / 1000) - 30);
-    const tolerance = process.env.ASFALIA_TOL ? BigInt(process.env.ASFALIA_TOL) : BigInt(toleranceSec);
-    // Ventana de vigencia del certificado. Corta a proposito en el demo:
-    // el vencimiento se tiene que poder mostrar en vivo.
-    const validity = BigInt(process.env.ASFALIA_VALIDITY ?? 300);
-    const tx = await deployed.callTx.attest(claimed, tolerance, validity);
+    const ownerSecret = loadOwnerSecret(network);
+    const tx = await deployed.callTx.attest(ownerSecret, claimed);
     return { txId: tx.public.txId as string, blockHeight: tx.public.blockHeight as number };
   }
 

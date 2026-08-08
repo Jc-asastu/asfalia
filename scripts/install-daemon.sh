@@ -4,6 +4,20 @@
 set -euo pipefail
 USER_NAME="${1:-$(logname)}"
 DEST=/opt/asfalia
+ENV_DIR=/etc/asfalia
+ENV_FILE="$ENV_DIR/asfalia.env"
+
+if [ ! -f "$ENV_FILE" ]; then
+  OWNER_SECRET="${ASFALIA_OWNER_SECRET:-}"
+  if ! [[ "$OWNER_SECRET" =~ ^[0-9a-fA-F]{64}$ ]]; then
+    echo "Falta ASFALIA_OWNER_SECRET (64 caracteres hex), la misma clave usada al desplegar." >&2
+    echo "Vuelve a ejecutar con: sudo --preserve-env=ASFALIA_OWNER_SECRET bash scripts/install-daemon.sh" >&2
+    exit 1
+  fi
+  install -d -m 700 "$ENV_DIR"
+  umask 077
+  printf 'ASFALIA_OWNER_SECRET=%s\n' "$OWNER_SECRET" > "$ENV_FILE"
+fi
 
 echo "Instalando Asfalia como daemon para el usuario: $USER_NAME"
 mkdir -p "$DEST"

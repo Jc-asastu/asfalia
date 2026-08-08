@@ -150,7 +150,7 @@ function startHeartbeat() {
       void runJob('attest').finally(() => { currentTrigger = 'manual'; });
     }
   };
-  console.log(`  Heartbeat: cada ${HEARTBEAT_SEC}s (ventana ${process.env.ASFALIA_VALIDITY ?? 300}s)`);
+  console.log(`  Heartbeat: cada ${HEARTBEAT_SEC}s (vigencia fijada al desplegar)`);
   beat();
   setInterval(beat, HEARTBEAT_SEC * 1000);
 }
