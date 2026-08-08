@@ -936,3 +936,10 @@ button { font: inherit; cursor: pointer; }
 }
 :root[data-theme='light'] .role-cta { color: var(--gold); font-weight: 700; }
 :root[data-theme='light'] .tour-primary { background: var(--white); color: var(--black-light); }
+
+/* El toggle de tema, bien visible: sol amarillo de noche, luna gris de dia */
+.theme-btn { font-size: 22px; line-height: 1; padding: 0 8px; vertical-align: middle; }
+:root:not([data-theme='light']) .theme-btn { color: #ffd75e; text-shadow: 0 0 12px rgba(255, 215, 94, 0.5); }
+:root[data-theme='light'] .theme-btn { color: #7a8494; text-shadow: none; font-size: 24px; }
+:root[data-theme='light'] .theme-btn:hover { color: #47505c; }
+:root:not([data-theme='light']) .theme-btn:hover { color: #ffe58a; }
