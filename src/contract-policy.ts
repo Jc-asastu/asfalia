@@ -59,7 +59,7 @@ export function loadOwnerSecret(
   network: NetworkId,
   env: NodeJS.ProcessEnv = process.env,
 ): Uint8Array {
-  const raw = env.ASFALIA_OWNER_SECRET?.trim();
+  const raw = env.ASFALIA_OWNER_SECRET;
   if (!raw) {
     if (network === 'undeployed') {
       return Uint8Array.from(Buffer.from(LOCAL_DEVELOPMENT_OWNER_SECRET, 'hex'));

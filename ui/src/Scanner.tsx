@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { getScan, type ScanResponse } from './api';
 import { useI18n, dateLocale } from './i18n';
 
@@ -58,9 +58,8 @@ export function Scanner() {
           </thead>
           <tbody>
             {data.rows.map((r) => (
-              <>
+              <Fragment key={r.identifier}>
                 <tr
-                  key={r.identifier}
                   className={`scan-row ${open === r.identifier ? 'open' : ''}`}
                   onClick={() => setOpen(open === r.identifier ? null : r.identifier)}
                 >
@@ -85,7 +84,7 @@ export function Scanner() {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
             {data.rows.length === 0 && (
               <tr><td colSpan={4} className="scan-empty">{t.scan_empty}</td></tr>

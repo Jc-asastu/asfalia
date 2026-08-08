@@ -19,6 +19,7 @@ import { createWallet, persistWalletState, type WalletContext } from './wallet';
 import { witnesses } from './witnesses';
 import { loadEntityBook, loadUsers, toPrivateState } from './entity-data';
 import { loadOwnerSecret } from './contract-policy';
+import { loadPrivateStatePassword } from './runtime-secrets';
 
 // @ts-expect-error Required for wallet sync
 globalThis.WebSocket = WebSocket;
@@ -42,8 +43,7 @@ export async function loadCompiledContract() {
 }
 
 export function createProviders(walletCtx: WalletContext, networkConfig: any) {
-  const privateStatePassword =
-    process.env.PRIVATE_STATE_PASSWORD?.trim() || 'Local-Devnet-Development-Placeholder-1';
+  const privateStatePassword = loadPrivateStatePassword(networkConfig.networkId);
 
   const walletProvider = {
     getCoinPublicKey: () => walletCtx.shieldedSecretKeys.coinPublicKey,

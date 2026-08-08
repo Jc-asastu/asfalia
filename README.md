@@ -109,10 +109,9 @@ Requirements: Node 22+, Docker (Compose v2), Compact compiler 0.31.1
 
 ```bash
 npm install
-npm run compile          # Compact -> ZK circuits + prover/verifier keys
-docker compose up -d     # local devnet: node + indexer + proof server
 export ASFALIA_OWNER_SECRET="$(openssl rand -hex 32)" # keep in a secret manager
-npm run setup            # deploy; the same secret authorizes every future attest
+npm run setup            # local devnet + Compact compile + deploy
+npm run build            # strict TypeScript checks + production UI bundle
 npm test                 # 19-case circuit suite (simulator, no proof server)
 npm run attest           # one-shot: real ZK proof -> verdict on-chain
 npm run dashboard        # build UI + serve API on http://localhost:3300
@@ -129,21 +128,24 @@ npm run dashboard
 ```
 
 Deploying to the public **preview** testnet is one flag:
-`ASFALIA_OWNER_SECRET=<64-hex> npm run setup -- --network preview` (the deploy script
-generates a wallet, prints the faucet URL and waits for funding). Public networks
-require the authority secret explicitly; it is never logged or written to project
-state. `ASFALIA_TOL` and `ASFALIA_VALIDITY` are read only at deployment because they
-become immutable contract policy.
+`npm run setup -- --network preview`. It requires the same 64-hex
+`ASFALIA_OWNER_SECRET`, an existing funded `MIDNIGHT_WALLET_MNEMONIC` or
+`MIDNIGHT_WALLET_SEED`, and a 16+ character `PRIVATE_STATE_PASSWORD`, all supplied
+from a secret manager. Asfalia never generates, prints or stores public-network
+wallet credentials. `ASFALIA_TOL` and `ASFALIA_VALIDITY` become immutable contract
+policy at deployment. Legacy state files can be scrubbed only after backup with
+`npm run network -- scrub-wallets`.
 
 The dashboard opens with a **role picker** — the separation is the product
 (see [docs/deployment.md](docs/deployment.md) for who runs what, where):
 
 - **Entity** (local console) — the private books (8 assets, 16 client accounts),
-  editable, live coverage, *Generate attestation*, and the emission history with
+  editable, live coverage, *Generate attestation*, and local daemon telemetry for
   the heartbeat. No login: possession is authentication.
 - **Auditor / counterparty** (public, read-only) — the stamped certificate with
-  its on-chain validity countdown, the heartbeat history (gaps included), and the
-  chain scanner with real block data from the indexer. The local demo can submit
+  its on-chain validity countdown and commitments. The local console also offers
+  operational history/scanning, but those views are not exposed as chain-derived
+  public truth. The local demo can submit
   `settle()` with the entity wallet; a remote counterparty must submit with its own
   wallet rather than spend through the entity API.
 - **Client** — enter an account, expected balance and its scoped access code. The

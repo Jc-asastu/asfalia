@@ -6,7 +6,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { resolveNetwork, getOrCreateWallet, formatWalletBackupNotice, recordDeployment } from './network';
+import { resolveNetwork, getOrCreateWallet, recordDeployment } from './network';
 import { createWallet, persistWalletState, unshieldedToken, type WalletContext } from './wallet';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { WebSocket } from 'ws';
@@ -26,6 +26,7 @@ globalThis.WebSocket = WebSocket;
 import { witnesses } from './witnesses';
 import { loadEntityBook, loadUsers, toPrivateState } from './entity-data';
 import { loadContractPolicy, loadOwnerSecret } from './contract-policy';
+import { loadPrivateStatePassword } from './runtime-secrets';
 
 // Identifier under which this contract's private state is stored.
 // For asfalia this holds the entity's balances + commitment nonce (local only).
@@ -39,10 +40,6 @@ const PRIVATE_STATE_ID = 'asfaliaPrivateState';
 const { network, config: networkConfig } = resolveNetwork();
 const WALLET = getOrCreateWallet(network);
 const SEED = WALLET.seed;
-{
-  const notice = formatWalletBackupNotice(WALLET, network);
-  if (notice) console.log(notice);
-}
 
 // ─── Proof server readiness ────────────────────────────────────────────────────
 //
@@ -96,7 +93,7 @@ async function createProviders(walletCtx: WalletContext) {
   // The SDK requires the private-state password to be at least 16 characters.
   // The default below is a placeholder for local devnet only — set a strong
   // password via PRIVATE_STATE_PASSWORD when you move to a non-local target.
-  const privateStatePassword = process.env.PRIVATE_STATE_PASSWORD?.trim() || 'Local-Devnet-Development-Placeholder-1';
+  const privateStatePassword = loadPrivateStatePassword(network);
 
   const walletProvider = {
     // In Midnight.js 4.1.x the WalletProvider interface returns the key objects
@@ -137,7 +134,7 @@ async function createProviders(walletCtx: WalletContext) {
 
 async function main() {
   console.log('\n╔══════════════════════════════════════════════════════════════╗');
-  console.log(`║  Deploy solvency to ${network}`);
+  console.log(`║  Deploy Asfalia to ${network}`);
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
   const seed = SEED;
@@ -211,7 +208,7 @@ async function main() {
           console.log(`\n  ❌ Funding not received within ${Math.round(timeoutMs / 60_000)} min.`);
           console.log(`  Address: ${address}`);
           console.log(`  Faucet:  ${networkConfig.faucet}`);
-          console.log('  Re-run setup after funding — your seed is preserved.\n');
+          console.log('  Re-run setup after funding with the same configured wallet credential.\n');
           await walletCtx.wallet.stop();
           process.exit(1);
         }
@@ -370,12 +367,12 @@ async function main() {
   console.log(`  Contract Address: ${contractAddress}\n`);
 
   recordDeployment(network, contractAddress, address.toString());
-  console.log('  Saved to .midnight-state.json\n');
+  console.log('  Deployment metadata saved to .midnight-state.json (no wallet secret)\n');
 
   await persistWalletState(network, walletCtx);
   await walletCtx.wallet.stop();
   console.log('─── Deployment complete ────────────────────────────────────────\n');
-  console.log('  Next: npm run cli\n');
+  console.log('  Next: npm run attest (or npm run dashboard)\n');
 }
 
 main().catch((err) => {

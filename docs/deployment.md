@@ -26,18 +26,19 @@ controls the machine and the books files controls the signature, exactly like a
 signing server. In production you'd wrap OS-level access control around it
 (disk encryption, user permissions), not a web login.
 
-Simplest path today (one repo, six commands):
+Simplest path today:
 
 ```bash
 git clone https://github.com/Jc-asastu/asfalia && cd asfalia
 npm install
-npm run compile                 # Compact -> circuits + keys (needs compact 0.31.1)
-docker compose up -d proof-server
 npm run network preview
 export ASFALIA_OWNER_SECRET="$(openssl rand -hex 32)"  # keep in a secret manager
 export ASFALIA_TOL=300                              # fixed at deployment
 export ASFALIA_VALIDITY=2592000                     # 30 days, fixed at deployment
-npm run setup                   # generates wallet, prints faucet URL, deploys
+export MIDNIGHT_WALLET_MNEMONIC='from your secret manager'
+export PRIVATE_STATE_PASSWORD='at least 16 random characters'
+npm run setup                   # proof server + Compact compile + deploy
+npm run build                   # strict TypeScript checks + UI bundle
 ASFALIA_HEARTBEAT_SEC=86400 npm run dashboard
 ```
 
@@ -51,16 +52,23 @@ never printed or stored in `.midnight-state.json`. Replace the books in `data/de
 open. The console is a **24/7 system service**: `deploy/asfalia.service` runs it
 under systemd with `Restart=always` (crash → relaunch in 15 s) and
 `WantedBy=multi-user.target` (power cut → it comes back with the machine). The
-heartbeat never depends on a human remembering anything — and a *gap* in the
-history can then only mean a deliberate unplug. Install with:
+heartbeat never depends on a human remembering anything. Its local telemetry
+also records gaps and operational failures for the entity to investigate. Install with:
 
 ```bash
-sudo --preserve-env=ASFALIA_OWNER_SECRET bash scripts/install-daemon.sh
+sudo install -d -m 700 /etc/asfalia
+sudoedit /etc/asfalia/asfalia.env
+# Add MIDNIGHT_WALLET_MNEMONIC (or MIDNIGHT_WALLET_SEED),
+# PRIVATE_STATE_PASSWORD and ASFALIA_OWNER_SECRET from your secret manager.
+sudo chmod 600 /etc/asfalia/asfalia.env
+sudo bash scripts/install-daemon.sh
 ```
 
-The installer copies that authority secret to `/etc/asfalia/asfalia.env` with
-owner-only permissions so systemd can attest after a reboot. If the file already
-exists it is preserved; the installer never rotates the contract authority.
+The installer refuses to run without compiled contract artifacts and this secret
+environment file. It never invents or echoes credentials. If an older
+`.midnight-state.json` still contains wallet material, back up every wallet first,
+set `ASFALIA_CONFIRM_WALLET_BACKUP=I_HAVE_BACKED_UP_ALL_WALLETS`, and run
+`npm run network -- scrub-wallets` once.
 
 The local console UI lives at `http://localhost:3300/console`. The server binds
 that administrative port to `127.0.0.1`, rejects non-loopback Host headers and
@@ -77,7 +85,9 @@ npm run dashboard
 
 `ASFALIA_CLIENT_TOKENS` maps each opaque token to exactly one account. The public
 listener has no routes for reading/editing books, importing CSVs, attesting or
-settling. Put TLS and the public hostname in front of port 8080 only.
+settling. It also does not expose the daemon's local history, score or scanner as
+if those were chain-derived facts. Put TLS and the public hostname in front of
+port 8080 only.
 
 Product north star: `npx asfalia init` — one command that scaffolds the books,
 installs the toolchain and starts the heartbeat as a service. The pieces already
@@ -86,7 +96,7 @@ exist; the wrapper is packaging work.
 ## 2 · Auditor page — the verifier (hosted anywhere)
 
 Reads **only public chain state** through the indexer: verdict, timestamps,
-validity, commitments, Merkle root, transaction history. No login — everything
+validity, commitments and Merkle root. No login — everything
 it shows is already public. It can be hosted as a plain web page by anyone
 (the entity, an auditor firm, Midnight community): it holds no secrets and
 needs no trust, because every number it displays can be re-derived from the

@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import { Buffer } from 'node:buffer';
 import { fileURLToPath } from 'node:url';
 
-import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
+import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 
 export type NetworkId = 'undeployed' | 'preview' | 'preprod';
@@ -31,22 +31,14 @@ export interface DeploymentRecord {
   deployer: string;
 }
 
-export interface WalletRecord {
-  seed: string;
-  /** BIP-39 recovery phrase. Absent on wallets created before mnemonic support. */
-  mnemonic?: string;
-  createdAt: string;
-}
-
 export interface NetworkState {
-  version: 1;
+  version: 2;
   activeNetwork: NetworkId;
-  wallets: Partial<Record<NetworkId, WalletRecord>>;
   deployments: Partial<Record<NetworkId, DeploymentRecord>>;
 }
 
 export const STATE_FILE_NAME = '.midnight-state.json';
-export const STATE_VERSION = 1 as const;
+export const STATE_VERSION = 2 as const;
 
 export const NETWORK_CONFIGS: Record<NetworkId, NetworkConfig> = {
   undeployed: {
@@ -90,6 +82,45 @@ function statePath(opts: FsOptions = {}): string {
   return path.join(opts.cwd ?? process.cwd(), STATE_FILE_NAME);
 }
 
+function validateState(value: unknown, file: string): NetworkState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Invalid state in ${file}: expected an object`);
+  }
+  const raw = value as Record<string, unknown>;
+  const keys = Object.keys(raw).sort();
+  const expected = ['activeNetwork', 'deployments', 'version'];
+  if (keys.length !== expected.length || keys.some((key, i) => key !== expected[i])) {
+    throw new Error(`Invalid state fields in ${file}: expected ${expected.join(', ')}`);
+  }
+  if (raw.version !== STATE_VERSION) {
+    throw new Error(`Unsupported state-file version in ${file} (expected ${STATE_VERSION})`);
+  }
+  if (!isNetworkId(raw.activeNetwork)) throw new Error(`Invalid activeNetwork in ${file}`);
+  if (!raw.deployments || typeof raw.deployments !== 'object' || Array.isArray(raw.deployments)) {
+    throw new Error(`Invalid deployments in ${file}`);
+  }
+  const deployments: Partial<Record<NetworkId, DeploymentRecord>> = {};
+  for (const [network, value] of Object.entries(raw.deployments as Record<string, unknown>)) {
+    if (!isNetworkId(network) || !value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error(`Invalid deployment ${network} in ${file}`);
+    }
+    const deployment = value as Record<string, unknown>;
+    const deploymentKeys = Object.keys(deployment).sort();
+    const expectedDeploymentKeys = ['address', 'deployedAt', 'deployer'];
+    if (
+      deploymentKeys.length !== expectedDeploymentKeys.length ||
+      deploymentKeys.some((key, i) => key !== expectedDeploymentKeys[i]) ||
+      typeof deployment.address !== 'string' || !/^[0-9a-f]{32,}$/i.test(deployment.address) ||
+      typeof deployment.deployer !== 'string' || deployment.deployer.length === 0 || deployment.deployer.length > 500 ||
+      typeof deployment.deployedAt !== 'string' || !Number.isFinite(Date.parse(deployment.deployedAt))
+    ) {
+      throw new Error(`Invalid deployment ${network} in ${file}`);
+    }
+    deployments[network] = deployment as unknown as DeploymentRecord;
+  }
+  return { version: STATE_VERSION, activeNetwork: raw.activeNetwork, deployments };
+}
+
 export function loadState(opts: FsOptions = {}): NetworkState | null {
   const p = statePath(opts);
   if (!fs.existsSync(p)) return null;
@@ -98,32 +129,76 @@ export function loadState(opts: FsOptions = {}): NetworkState | null {
   try {
     parsed = JSON.parse(raw);
   } catch (e) {
-    throw new Error(`Failed to parse ${p}: ${(e as Error).message}. Run \`npm run clean\` to reset.`);
+    throw new Error(`Failed to parse ${p}: ${(e as Error).message}. Back it up, then repair the JSON.`);
   }
-  if (
-    !parsed ||
-    typeof parsed !== 'object' ||
-    (parsed as { version?: unknown }).version !== STATE_VERSION
-  ) {
+  if ((parsed as { version?: unknown })?.version === 1) {
     throw new Error(
-      `Unsupported state-file version in ${p} (expected ${STATE_VERSION}). Run \`npm run clean\` to reset.`,
+      `${p} uses legacy state version 1, which may contain wallet secrets. ` +
+        'Back up the wallet in a secret manager, configure MIDNIGHT_WALLET_MNEMONIC or ' +
+        'MIDNIGHT_WALLET_SEED, then run `npm run network -- scrub-wallets`.',
     );
   }
-  if (!isNetworkId((parsed as { activeNetwork?: unknown }).activeNetwork)) {
-    throw new Error(
-      `Invalid activeNetwork in ${p}. Run \`npm run clean\` to reset.`,
-    );
-  }
-  return parsed as NetworkState;
+  return validateState(parsed, p);
 }
 
 export function saveState(state: NetworkState, opts: FsOptions = {}): void {
   const p = statePath(opts);
-  // Write to a sibling tmp file then rename → atomic on POSIX. Owner-only
-  // mode: the file holds wallet secrets (seed + recovery phrase).
+  // Write to a sibling tmp file then rename → atomic on POSIX. State version 2
+  // contains deployment metadata only; wallet secrets are never written here.
   const tmp = `${p}.tmp-${process.pid}-${Date.now()}`;
-  fs.writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
-  fs.renameSync(tmp, p);
+  const safeState = validateState(state, p);
+  try {
+    fs.writeFileSync(tmp, `${JSON.stringify(safeState, null, 2)}\n`, { mode: 0o600 });
+    fs.renameSync(tmp, p);
+  } catch (error) {
+    try { fs.rmSync(tmp, { force: true }); } catch { /* best effort */ }
+    throw error;
+  }
+}
+
+/**
+ * Explicitly remove wallet material written by state version 1. This refuses
+ * to run without a deliberate backup confirmation because the operation is
+ * irreversible and a state file may contain credentials for several networks.
+ */
+export function scrubLegacyWalletSecrets(opts: SeedOptions = {}): boolean {
+  const env = opts.env ?? process.env;
+  const p = statePath({ cwd: opts.cwd });
+  if (!fs.existsSync(p)) return false;
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch (e) {
+    throw new Error(`Failed to parse ${p}: ${(e as Error).message}`);
+  }
+  if (parsed?.version === STATE_VERSION) return false;
+  if (parsed?.version !== 1 || !isNetworkId(parsed.activeNetwork)) {
+    throw new Error(`Cannot migrate unsupported state file: ${p}`);
+  }
+
+  const hasWalletSecrets = Object.values(parsed.wallets ?? {}).some((wallet: any) =>
+    Boolean(wallet?.seed || wallet?.mnemonic),
+  );
+  if (
+    hasWalletSecrets &&
+    env.ASFALIA_CONFIRM_WALLET_BACKUP !== 'I_HAVE_BACKED_UP_ALL_WALLETS'
+  ) {
+    throw new Error(
+      'Refusing to remove legacy wallet secrets. Back up every seed/mnemonic securely, then set ' +
+        'ASFALIA_CONFIRM_WALLET_BACKUP=I_HAVE_BACKED_UP_ALL_WALLETS and retry.',
+    );
+  }
+
+  saveState(
+    {
+      version: STATE_VERSION,
+      activeNetwork: parsed.activeNetwork,
+      deployments: parsed.deployments ?? {},
+    },
+    { cwd: opts.cwd },
+  );
+  return true;
 }
 
 export function parseNetworkFlag(argv: string[]): NetworkId | null {
@@ -210,9 +285,9 @@ export const GENESIS_SEED = '000000000000000000000000000000000000000000000000000
 
 // ─── Wallet identity (BIP-39, Lace-compatible) ─────────────────────────────────
 //
-// Public-network wallets are mnemonic-first: a 24-word BIP-39 phrase whose
+// Public-network wallets may be supplied as a 24-word BIP-39 phrase whose
 // seed is derived with the standard mnemonicToSeed PBKDF2 step (empty
-// passphrase). Lace derives seeds the same way, so a phrase generated here
+// passphrase). Lace derives seeds the same way, so a phrase supplied here
 // restores the identical wallet in Lace and vice versa.
 //
 // IMPORTANT: derivation must stay mnemonicToSeed (64-byte seed). Do NOT
@@ -221,11 +296,6 @@ export const GENESIS_SEED = '000000000000000000000000000000000000000000000000000
 
 export function normalizeMnemonic(mnemonic: string): string {
   return mnemonic.trim().toLowerCase().split(/\s+/).join(' ');
-}
-
-/** Generate a new 24-word BIP-39 recovery phrase (256-bit entropy). */
-export function generateMnemonicPhrase(): string {
-  return generateMnemonic(wordlist, 256);
 }
 
 export function isValidMnemonic(mnemonic: string): boolean {
@@ -250,17 +320,13 @@ export interface SeedOptions {
 
 export interface WalletCredentials {
   seed: string;
-  /** BIP-39 phrase when known; null for genesis, env-seed, and legacy wallets. */
-  mnemonic: string | null;
-  /** True when this call generated (and persisted) a brand-new wallet. */
-  created: boolean;
 }
 
+/** Load wallet credentials. Public-network secrets are never generated, logged or persisted here. */
 export function getOrCreateWallet(network: NetworkId, opts: SeedOptions = {}): WalletCredentials {
   const env = opts.env ?? process.env;
-  const cwd = opts.cwd ?? process.cwd();
 
-  if (network === 'undeployed') return { seed: GENESIS_SEED, mnemonic: null, created: false };
+  if (network === 'undeployed') return { seed: GENESIS_SEED };
 
   const envSeed = env.MIDNIGHT_WALLET_SEED;
   const envMnemonic = env.MIDNIGHT_WALLET_MNEMONIC;
@@ -280,7 +346,7 @@ export function getOrCreateWallet(network: NetworkId, opts: SeedOptions = {}): W
           'A Lace-compatible BIP-39 seed is 128 hex characters — or set MIDNIGHT_WALLET_MNEMONIC to pass the phrase directly.',
       );
     }
-    return { seed: hex, mnemonic: null, created: false };
+    return { seed: hex.toLowerCase() };
   }
   if (envMnemonic) {
     if (!isValidMnemonic(envMnemonic)) {
@@ -288,57 +354,18 @@ export function getOrCreateWallet(network: NetworkId, opts: SeedOptions = {}): W
         'MIDNIGHT_WALLET_MNEMONIC is not a valid BIP-39 recovery phrase (check the words and word count).',
       );
     }
-    return { seed: mnemonicToSeedHex(envMnemonic), mnemonic: normalizeMnemonic(envMnemonic), created: false };
+    return { seed: mnemonicToSeedHex(envMnemonic) };
   }
 
-  const existing = loadState({ cwd });
-  const persisted = existing?.wallets?.[network];
-  if (persisted?.seed) {
-    // Legacy pre-mnemonic wallets have no phrase; their seed passes through untouched.
-    return { seed: persisted.seed, mnemonic: persisted.mnemonic ?? null, created: false };
-  }
-
-  const mnemonic = generateMnemonicPhrase();
-  const seed = mnemonicToSeedHex(mnemonic);
-  const next: NetworkState = existing ?? {
-    version: STATE_VERSION,
-    activeNetwork: network,
-    wallets: {},
-    deployments: {},
-  };
-  next.activeNetwork = network;
-  next.wallets = {
-    ...next.wallets,
-    [network]: { seed, mnemonic, createdAt: new Date().toISOString() },
-  };
-  saveState(next, { cwd });
-  return { seed, mnemonic, created: true };
+  throw new Error(
+    `No wallet credential configured for ${network}. Set MIDNIGHT_WALLET_MNEMONIC ` +
+      'or MIDNIGHT_WALLET_SEED from a secret manager; Asfalia never stores or prints it.',
+  );
 }
 
 /** Back-compat wrapper returning only the seed. Prefer getOrCreateWallet. */
 export function getOrCreateSeed(network: NetworkId, opts: SeedOptions = {}): string {
   return getOrCreateWallet(network, opts).seed;
-}
-
-/**
- * One-time backup notice for a freshly generated wallet; null otherwise.
- * Callers print this right after obtaining credentials.
- */
-export function formatWalletBackupNotice(
-  wallet: WalletCredentials,
-  network: NetworkId,
-): string | null {
-  if (!wallet.created || !wallet.mnemonic) return null;
-  return [
-    '',
-    `  New ${network} wallet generated. Its 24-word recovery phrase:`,
-    '',
-    `    ${wallet.mnemonic}`,
-    '',
-    '  Write this phrase down — anyone holding it controls the wallet. It also',
-    `  restores the same wallet in Lace, and is saved to ${STATE_FILE_NAME} (gitignored).`,
-    '',
-  ].join('\n');
 }
 
 export function getDeployment(network: NetworkId, opts: FsOptions = {}): DeploymentRecord | null {
@@ -357,7 +384,6 @@ export function recordDeployment(
   const next: NetworkState = existing ?? {
     version: STATE_VERSION,
     activeNetwork: network,
-    wallets: {},
     deployments: {},
   };
   next.deployments = {
@@ -374,7 +400,6 @@ export function setActiveNetwork(network: NetworkId, opts: FsOptions = {}): void
   const next: NetworkState = existing ?? {
     version: STATE_VERSION,
     activeNetwork: network,
-    wallets: {},
     deployments: {},
   };
   next.activeNetwork = network;
@@ -398,6 +423,15 @@ function isMain(): boolean {
 
 function cliMain(argv: string[]): number {
   const args = argv.slice(2);
+  if (args[0] === 'scrub-wallets') {
+    const changed = scrubLegacyWalletSecrets();
+    process.stdout.write(
+      changed
+        ? 'Legacy wallet material removed from .midnight-state.json.\n'
+        : 'State already contains no legacy wallet material.\n',
+    );
+    return 0;
+  }
   if (args.length === 0) {
     const r = resolveNetwork({ argv });
     const dep = getDeployment(r.network);
@@ -413,9 +447,10 @@ function cliMain(argv: string[]): number {
   setActiveNetwork(candidate);
   process.stdout.write(`Active network is now: ${candidate}\n`);
   if (candidate !== 'undeployed') {
-    const seed = loadState()?.wallets?.[candidate]?.seed;
-    if (!seed) {
-      process.stdout.write(`Wallet not yet generated — run \`npm run setup\` to fund and deploy.\n`);
+    if (!process.env.MIDNIGHT_WALLET_SEED && !process.env.MIDNIGHT_WALLET_MNEMONIC) {
+      process.stdout.write(
+        'Wallet credential not configured — set MIDNIGHT_WALLET_MNEMONIC or MIDNIGHT_WALLET_SEED.\n',
+      );
     }
   }
   return 0;

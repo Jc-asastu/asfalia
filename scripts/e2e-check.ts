@@ -1,5 +1,5 @@
 /**
- * End-to-end smoke check for solvency.
+ * End-to-end smoke check for Asfalia.
  *
  * Reconnects to the deployed contract, reads its ledger state, and exits 0
  * on success. Used by `npm run test:e2e` and by the project's CI workflows.
@@ -14,25 +14,24 @@ import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
-import { resolveNetwork, getOrCreateWallet, formatWalletBackupNotice, getDeployment } from '../src/network';
+import { resolveNetwork, getOrCreateWallet, getDeployment } from '../src/network';
 import { createWallet, persistWalletState } from '../src/wallet';
 import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
+import { witnesses } from '../src/witnesses';
+import { loadEntityBook, loadUsers, toPrivateState } from '../src/entity-data';
+import { loadPrivateStatePassword } from '../src/runtime-secrets';
 
 // @ts-expect-error wallet sync requires WebSocket
 globalThis.WebSocket = WebSocket;
 
-// Must match the privateStateId used at deploy time (witness-free → empty state).
-const PRIVATE_STATE_ID = 'helloWorldPrivateState';
+// Must match the privateStateId used by deploy.ts and contract.ts.
+const PRIVATE_STATE_ID = 'asfaliaPrivateState';
 
 // ─── Network configuration ─────────────────────────────────────────────────────
 
 const { network, config: networkConfig } = resolveNetwork();
 const WALLET = getOrCreateWallet(network);
 const SEED = WALLET.seed;
-{
-  const notice = formatWalletBackupNotice(WALLET, network);
-  if (notice) console.log(notice);
-}
 
 function fail(msg: string): never {
   console.error(`❌ e2e-check failed: ${msg}`);
@@ -56,13 +55,13 @@ async function main() {
 
   // 2. Build wallet and providers
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const zkConfigPath = path.resolve(__dirname, '..', 'contracts', 'managed', 'hello-world');
+  const zkConfigPath = path.resolve(__dirname, '..', 'contracts', 'managed', 'asfalia');
   const contractPath = path.join(zkConfigPath, 'contract', 'index.js');
   if (!fs.existsSync(contractPath)) fail('Compiled contract missing — run `npm run compile`.');
-  const HelloWorld = await import(pathToFileURL(contractPath).href);
-  const compiledContract = CompiledContract.make('hello-world', HelloWorld.Contract).pipe(
-    CompiledContract.withVacantWitnesses,
-    CompiledContract.withCompiledFileAssets(zkConfigPath),
+  const Asfalia = await import(pathToFileURL(contractPath).href);
+  const compiledContract = CompiledContract.make('asfalia', Asfalia.Contract).pipe(
+    (CompiledContract.withWitnesses as any)(witnesses),
+    (CompiledContract.withCompiledFileAssets as any)(zkConfigPath),
   );
 
   const walletCtx = await createWallet({ network, networkConfig, seed: SEED });
@@ -86,11 +85,9 @@ async function main() {
 
   const providers = {
     privateStateProvider: levelPrivateStateProvider({
-      privateStateStoreName: 'hello-world-state',
+      privateStateStoreName: 'asfalia-state',
       accountId: walletCtx.unshieldedKeystore.getBech32Address().toString(),
-      // SDK requires ≥16 chars. e2e-check is read-only so we don't expose
-      // the env-var override here — match the deploy script's local-devnet default.
-      privateStoragePasswordProvider: () => 'Local-Devnet-Development-Placeholder-1',
+      privateStoragePasswordProvider: () => loadPrivateStatePassword(network),
     }),
     publicDataProvider: indexerPublicDataProvider(networkConfig.indexer, networkConfig.indexerWS),
     zkConfigProvider,
@@ -105,7 +102,7 @@ async function main() {
       contractAddress: deployment.address,
       compiledContract: compiledContract as any,
       privateStateId: PRIVATE_STATE_ID,
-      initialPrivateState: {},
+      initialPrivateState: toPrivateState(loadEntityBook(), loadUsers()),
     });
   } catch (err: any) {
     await walletCtx.wallet.stop();
@@ -119,6 +116,19 @@ async function main() {
   if (!onChainState) {
     await walletCtx.wallet.stop();
     fail(`queryContractState returned null for ${deployment.address}`);
+  }
+  const currentLedger = Asfalia.ledger(onChainState.data);
+  if (typeof currentLedger.verdict !== 'boolean') {
+    await walletCtx.wallet.stop();
+    fail('Asfalia ledger verdict is not readable');
+  }
+  if (Buffer.from(currentLedger.assetsCommitment).length !== 32) {
+    await walletCtx.wallet.stop();
+    fail('Asfalia assets commitment is not 32 bytes');
+  }
+  if (Buffer.from(currentLedger.liabilitiesRoot).length !== 32) {
+    await walletCtx.wallet.stop();
+    fail('Asfalia liabilities root is not 32 bytes');
   }
 
   console.log(`✅ e2e-check passed`);

@@ -34,13 +34,15 @@ export type ServerState = {
   entity: string;
   ledger: LedgerState;
   attest: AttestJob;
-  score: Score;
+  score: Score | null;
   heartbeat: { sec: number; nextAt: number | null } | null;
   capabilities: {
     entityConsole: boolean;
     settlement: boolean;
     clientProof: boolean;
     clientTokenRequired: boolean;
+    history: boolean;
+    scanner: boolean;
   };
   now: number; // epoch segundos del server — evita el reloj del cliente
 };
@@ -84,29 +86,30 @@ async function responseJson<T>(response: Response): Promise<T> {
 }
 
 export const getState = (): Promise<ServerState> =>
-  fetch('/api/state').then((r) => r.json());
+  fetch('/api/state').then((response) => responseJson<ServerState>(response));
 
-export const getBook = (): Promise<Book> => fetch('/api/book').then((r) => r.json());
+export const getBook = (): Promise<Book> =>
+  fetch('/api/book').then((response) => responseJson<Book>(response));
 
-export const putBook = (side: 'assets' | 'clients', index: number, cents: string) =>
+export const putBook = (side: 'assets' | 'clients', index: number, cents: string): Promise<{ ok: true; book: Book }> =>
   fetch('/api/book', {
     method: 'PUT',
     headers: { 'content-type': 'application/json', 'x-asfalia-console': '1' },
     body: JSON.stringify({ side, index, cents }),
-  }).then(responseJson);
+  }).then((response) => responseJson<{ ok: true; book: Book }>(response));
 
-export const postAttest = () => fetch('/api/attest', {
+export const postAttest = (): Promise<{ started: true }> => fetch('/api/attest', {
   method: 'POST',
   headers: { 'x-asfalia-console': '1' },
-}).then(responseJson);
+}).then((response) => responseJson<{ started: true }>(response));
 
-export const postSettle = () => fetch('/api/settle', {
+export const postSettle = (): Promise<{ started: true }> => fetch('/api/settle', {
   method: 'POST',
   headers: { 'x-asfalia-console': '1' },
-}).then(responseJson);
+}).then((response) => responseJson<{ started: true }>(response));
 
 export const getHistory = (): Promise<HistoryResponse> =>
-  fetch('/api/history').then((r) => r.json());
+  fetch('/api/history').then((response) => responseJson<HistoryResponse>(response));
 
 export type ChainAction = {
   data?: {
@@ -118,7 +121,7 @@ export type ChainAction = {
 };
 
 export const getChain = (): Promise<ChainAction> =>
-  fetch('/api/chain').then((r) => r.json());
+  fetch('/api/chain').then((response) => responseJson<ChainAction>(response));
 
 export type ScanRow = {
   identifier: string;
@@ -134,19 +137,20 @@ export type ScanResponse = {
 };
 
 export const getScan = (): Promise<ScanResponse> =>
-  fetch('/api/scan').then((r) => r.json());
+  fetch('/api/scan').then((response) => responseJson<ScanResponse>(response));
 
-export const importCsv = (kind: 'assets' | 'clients', csv: string) =>
+export const importCsv = (kind: 'assets' | 'clients', csv: string): Promise<{ ok: true; book: Book }> =>
   fetch('/api/book/import', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-asfalia-console': '1' },
     body: JSON.stringify({ kind, csv }),
-  }).then(responseJson);
+  }).then((response) => responseJson<{ ok: true; book: Book }>(response));
 
 export const getInclusion = (account: string, accessToken: string): Promise<InclusionResponse> => {
   const headers: Record<string, string> = {};
   if (accessToken) headers.authorization = `Bearer ${accessToken}`;
-  return fetch(`/api/inclusion?account=${encodeURIComponent(account)}`, { headers }).then(responseJson);
+  return fetch(`/api/inclusion?account=${encodeURIComponent(account)}`, { headers })
+    .then((response) => responseJson<InclusionResponse>(response));
 };
 
 /** Centavos -> "1.824.500.000,00" (es-AR). */

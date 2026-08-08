@@ -15,12 +15,14 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectAsfalia, type AsfaliaConnection } from '../src/contract';
 import {
-  accountIdHex, loadEntityBook, loadUsers, toPrivateState, toClientAccount, bookFile, usersFile,
+  accountIdHex, loadEntityBook, loadUsers, saveEntityBook, saveUsers,
+  toPrivateState, toClientAccount, validateEntityBook, validateUsers,
   type EntityBook, type DemoUser,
 } from '../src/entity-data';
 import { PRIVATE_STATE_ID } from '../src/contract';
 import { inclusionProof } from '../src/merkle';
 import { computeScore } from '../src/score';
+import { appendHistory, loadHistory, type LogEntry } from '../src/attest-history';
 import {
   clientAccountFromRequest,
   loadClientTokenRegistry,
@@ -55,12 +57,16 @@ const LOG_FILE = process.env.ASFALIA_LOG ?? path.resolve(__dirname, '..', 'data'
 // Heartbeat: emision automatica de certificados, renovacion solapada.
 // 0 = apagado. En produccion: 86400 (diario). En demo: 180.
 const HEARTBEAT_SEC = Number(process.env.ASFALIA_HEARTBEAT_SEC ?? 0);
+if (!Number.isSafeInteger(HEARTBEAT_SEC) || HEARTBEAT_SEC < 0) {
+  throw new Error('ASFALIA_HEARTBEAT_SEC must be a non-negative integer');
+}
 
 // ── Estado del servidor ────────────────────────────────────────────────────────
 
 let conn: AsfaliaConnection;
 let book: EntityBook = loadEntityBook();
 let users: DemoUser[] = loadUsers();
+let dataMutationRunning = false;
 
 async function syncPrivateState() {
   conn.providers.privateStateProvider.setContractAddress(conn.deployment.address as any);
@@ -71,32 +77,11 @@ async function syncPrivateState() {
 }
 
 // ── Historial de emisiones ─────────────────────────────────────────────────────
-// Cada fila apunta a su tx on-chain: el log es un indice verificable, no una
-// fuente de verdad paralela. Los huecos entre filas son SENAL: la entidad
-// eligio no probar en ese periodo.
-
-type LogEntry = {
-  ts: number; // epoch ms de emision
-  trigger: 'heartbeat' | 'manual';
-  ok: boolean;
-  verdict: boolean | null;
-  txId: string | null;
-  attestedAt: string | null;
-  validUntil: string | null;
-  assetsCommitment: string | null;
-  liabilitiesRoot: string | null;
-  durationSec: number | null;
-  error: string | null;
-};
+// Telemetria operativa local. Cada exito apunta a una tx on-chain, pero el
+// archivo no se expone como si fuera historial publico derivado de la cadena.
 
 const scanCache = new Map<string, unknown>();
-let history: LogEntry[] = [];
-try { history = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch { /* primer arranque */ }
-
-function appendHistory(e: LogEntry) {
-  history.push(e);
-  fs.writeFileSync(LOG_FILE, JSON.stringify(history, null, 2));
-}
+let history: LogEntry[] = loadHistory(LOG_FILE);
 
 type Job = {
   kind: 'attest' | 'settle' | null;
@@ -116,7 +101,7 @@ const job: Job = {
 /** Corre attest o settle con el mismo ciclo de vida de job.
  *  En settle, un rechazo de la cadena NO es una falla del sistema:
  *  es el producto funcionando (certificado vencido = tx rechazada). */
-async function runJob(kind: 'attest' | 'settle') {
+async function runJob(kind: 'attest' | 'settle', trigger: 'heartbeat' | 'manual' = 'manual') {
   job.kind = kind;
   job.running = true;
   // Codigos, no frases: la UI los traduce (ES/EN).
@@ -138,29 +123,35 @@ async function runJob(kind: 'attest' | 'settle') {
         ? 'rejected_insolvent'
         : kind === 'attest' ? 'failed_attest' : 'failed_settle';
   } finally {
-    job.running = false;
     job.finishedAt = Date.now();
     job.durationSec = job.startedAt ? (job.finishedAt - job.startedAt) / 1000 : null;
     if (kind === 'attest') {
       const ledger = await conn.readLedger().catch(() => null);
-      appendHistory({
-        ts: job.finishedAt,
-        trigger: currentTrigger,
-        ok: !job.error,
-        verdict: job.error ? null : (ledger?.verdict ?? null),
-        txId: job.txId,
-        attestedAt: ledger ? String(ledger.attestedAt) : null,
-        validUntil: ledger ? String(ledger.validUntil) : null,
-        assetsCommitment: ledger?.assetsCommitment ?? null,
-        liabilitiesRoot: ledger?.liabilitiesRoot ?? null,
-        durationSec: job.durationSec,
-        error: job.error,
-      });
+      try {
+        history = appendHistory(LOG_FILE, history, {
+          ts: job.finishedAt,
+          trigger,
+          ok: !job.error,
+          verdict: job.error ? null : (ledger?.verdict ?? null),
+          txId: job.txId,
+          attestedAt: ledger ? String(ledger.attestedAt) : null,
+          validUntil: ledger ? String(ledger.validUntil) : null,
+          assetsCommitment: ledger?.assetsCommitment ?? null,
+          liabilitiesRoot: ledger?.liabilitiesRoot ?? null,
+          durationSec: job.durationSec,
+          error: job.error,
+        });
+      } catch (error) {
+        job.phase = 'failed_history';
+        job.error = `attestation completed but local history could not be persisted: ${(error as Error).message}`;
+        console.error(`  ${job.error}`);
+      }
     }
+    // Keep the lock until ledger read and durable history persistence finish.
+    job.running = false;
   }
 }
 
-let currentTrigger: 'heartbeat' | 'manual' = 'manual';
 let nextBeatAt: number | null = null;
 
 /** El latido: emite un certificado nuevo ANTES de que venza el anterior.
@@ -170,9 +161,8 @@ function startHeartbeat() {
   if (!HEARTBEAT_SEC) return;
   const beat = () => {
     nextBeatAt = Date.now() + HEARTBEAT_SEC * 1000;
-    if (!job.running) {
-      currentTrigger = 'heartbeat';
-      void runJob('attest').finally(() => { currentTrigger = 'manual'; });
+    if (!job.running && !dataMutationRunning) {
+      void runJob('attest', 'heartbeat');
     }
   };
   console.log(`  Heartbeat: cada ${HEARTBEAT_SEC}s (vigencia fijada al desplegar)`);
@@ -253,7 +243,9 @@ async function handleApi(
       entity: book.entity,
       ledger, // verdict, attestedAt (epoch s), balancesCommitment — nada mas existe
       attest: scope === 'admin' ? job : { ...job, error: null },
-      score: computeScore(history, HEARTBEAT_SEC || null, Date.now()),
+      score: scope === 'admin'
+        ? computeScore(history, HEARTBEAT_SEC || null, Date.now())
+        : null,
       heartbeat: HEARTBEAT_SEC
         ? { sec: HEARTBEAT_SEC, nextAt: nextBeatAt ? Math.floor(nextBeatAt / 1000) : null }
         : null,
@@ -262,22 +254,24 @@ async function handleApi(
         settlement: scope === 'admin',
         clientProof: scope === 'admin' || CLIENT_TOKENS.size > 0,
         clientTokenRequired: scope === 'public',
+        history: scope === 'admin',
+        scanner: scope === 'admin',
       },
       now: Math.floor(Date.now() / 1000),
     });
   }
 
-  if (req.method === 'GET' && url.pathname === '/api/history') {
+  if (scope === 'admin' && req.method === 'GET' && url.pathname === '/api/history') {
     return json(res, 200, {
       heartbeatSec: HEARTBEAT_SEC || null,
-      entries: scope === 'admin' ? history : history.map((entry) => ({ ...entry, error: null })),
+      entries: history,
       score: computeScore(history, HEARTBEAT_SEC || null, Date.now()),
     });
   }
 
-  if (req.method === 'GET' && url.pathname === '/api/scan') {
-    // El scanner: cabeza de la cadena + cada emision de nuestro log resuelta
-    // contra el indexer (identifier -> hash real + bloque). Cache en memoria.
+  if (scope === 'admin' && req.method === 'GET' && url.pathname === '/api/scan') {
+    // Consola operativa: resuelve las tx de la telemetria local contra el
+    // indexer. No se presenta en el portal como un historial chain-derived.
     const { resolveNetwork } = await import('../src/network');
     const { config } = resolveNetwork();
     const gql = async (query: string) => {
@@ -345,22 +339,38 @@ async function handleApi(
   if (scope === 'admin' && req.method === 'PUT' && url.pathname === '/api/book') {
     // Edita un activo o el saldo de una cuenta de cliente — el momento
     // adversarial del demo: mentir un numero y ver romperse la matematica.
-    const { side, index, cents } = await readBody(req);
-    if (!/^\d+$/.test(String(cents)) || BigInt(cents) > (1n << 64n) - 1n) {
-      return json(res, 400, { error: 'cents: entero no negativo dentro de Uint<64>' });
+    if (job.running || dataMutationRunning) return json(res, 409, { error: 'operacion en curso' });
+    dataMutationRunning = true;
+    try {
+      const { side, index, cents } = await readBody(req);
+      if (!Number.isInteger(index)) {
+        return json(res, 400, { error: 'index: entero requerido' });
+      }
+      if (!/^\d+$/.test(String(cents)) || BigInt(cents) > (1n << 64n) - 1n) {
+        return json(res, 400, { error: 'cents: entero no negativo dentro de Uint<64>' });
+      }
+      if (side === 'assets' && index >= 0 && index < 8) {
+        const next = validateEntityBook({
+          ...book,
+          assets: book.assets.map((item, i) => i === index ? { ...item, cents: String(cents) } : item),
+        });
+        saveEntityBook(next);
+        book = next;
+      } else if (side === 'clients' && index >= 0 && index < 16) {
+        const next = validateUsers({
+          users: users.map((user, i) => i === index ? { ...user, cents: String(cents) } : user),
+        });
+        saveUsers(next);
+        users = next;
+      } else {
+        return json(res, 400, { error: 'side assets(0-7)|clients(0-15)' });
+      }
+      // El proximo attest usa los libros editados: se pisa el estado privado local.
+      await syncPrivateState();
+      return json(res, 200, { ok: true, book: { ...book, users } });
+    } finally {
+      dataMutationRunning = false;
     }
-    if (side === 'assets' && index >= 0 && index < 8) {
-      book.assets[index].cents = String(cents);
-      fs.writeFileSync(bookFile(), JSON.stringify(book, null, 2));
-    } else if (side === 'clients' && index >= 0 && index < 16) {
-      users[index].cents = String(cents);
-      fs.writeFileSync(usersFile(), JSON.stringify({ users }, null, 2));
-    } else {
-      return json(res, 400, { error: 'side assets(0-7)|clients(0-15)' });
-    }
-    // El proximo attest usa los libros editados: se pisa el estado privado local.
-    await syncPrivateState();
-    return json(res, 200, { ok: true, book: { ...book, users } });
   }
 
   if (scope === 'admin' && req.method === 'POST' && url.pathname === '/api/book/import') {
@@ -371,6 +381,9 @@ async function handleApi(
     // decimales con coma) y comillas escapadas. El id se deriva de la cuenta;
     // los salts los genera el daemon y una cuenta existente conserva el suyo
     // (continuidad de las pruebas de inclusion del cliente).
+    if (job.running || dataMutationRunning) return json(res, 409, { error: 'operacion en curso' });
+    dataMutationRunning = true;
+    try {
     const { kind, csv } = await readBody(req);
     if (!['assets', 'clients'].includes(kind) || typeof csv !== 'string') {
       return json(res, 400, { error: 'kind assets|clients y csv (texto)' });
@@ -397,6 +410,7 @@ async function handleApi(
         } else cell += ch;
       }
       row.push(cell.trim());
+      if (inQ) throw new Error('CSV invalido: campo entrecomillado sin cierre');
       if (row.some((c) => c !== '')) out.push(row);
       return out;
     };
@@ -435,8 +449,12 @@ async function handleApi(
 
       if (kind === 'assets') {
         const [li, ai] = cols;
-        book.assets = rows.map((r) => ({ label: r[li], cents: toCents(r[ai]) }));
-        fs.writeFileSync(bookFile(), JSON.stringify(book, null, 2));
+        const next = validateEntityBook({
+          ...book,
+          assets: rows.map((r) => ({ label: r[li], cents: toCents(r[ai]) })),
+        });
+        saveEntityBook(next);
+        book = next;
       } else {
         const [ac, nc, am] = cols;
         const seen = new Set<string>();
@@ -445,7 +463,7 @@ async function handleApi(
           seen.add(r[ac]);
         }
         const prev = new Map(users.map((u) => [u.account, u]));
-        users = rows.map((r) => {
+        const next = validateUsers({ users: rows.map((r) => {
           const existing = prev.get(r[ac]);
           return {
             account: r[ac],
@@ -454,8 +472,9 @@ async function handleApi(
             idHex: accountIdHex(r[ac]),
             saltHex: existing?.saltHex ?? randomBytes(32).toString('hex'),
           };
-        });
-        fs.writeFileSync(usersFile(), JSON.stringify({ users }, null, 2));
+        }) });
+        saveUsers(next);
+        users = next;
       }
     } catch (e: any) {
       return json(res, 400, { error: e?.message ?? 'CSV invalido' });
@@ -472,6 +491,9 @@ async function handleApi(
       });
     }
     return json(res, 200, { ok: true, book: { ...book, users } });
+    } finally {
+      dataMutationRunning = false;
+    }
   }
 
   if (req.method === 'GET' && url.pathname === '/api/inclusion') {
@@ -502,8 +524,8 @@ async function handleApi(
   }
 
   if (scope === 'admin' && req.method === 'POST' && (url.pathname === '/api/attest' || url.pathname === '/api/settle')) {
-    if (job.running) return json(res, 409, { error: 'operacion en curso' });
-    void runJob(url.pathname === '/api/attest' ? 'attest' : 'settle');
+    if (job.running || dataMutationRunning) return json(res, 409, { error: 'operacion en curso' });
+    void runJob(url.pathname === '/api/attest' ? 'attest' : 'settle', 'manual');
     return json(res, 202, { started: true });
   }
 
@@ -594,7 +616,10 @@ function createHttpServer(scope: ServerScope) {
     } catch (e: any) {
       const status = e instanceof HttpError ? e.status : 500;
       if (status >= 500) console.error('  error:', e?.message ?? e);
-      return json(res, status, { error: e?.message ?? 'error interno' });
+      const message = scope === 'public' && status >= 500
+        ? 'internal server error'
+        : e?.message ?? 'error interno';
+      return json(res, status, { error: message });
     }
   });
 }

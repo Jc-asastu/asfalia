@@ -27,6 +27,7 @@ RestartSec=15
 PrivateTmp=true
 ProtectSystem=strict
 ReadWritePaths=/opt/asfalia
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target

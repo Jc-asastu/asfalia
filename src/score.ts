@@ -1,6 +1,5 @@
-// Score de credibilidad — una funcion DETERMINISTICA del historial publico
-// de emisiones. No es un numero que Asfalia declara: cualquiera puede
-// recomputarlo desde las transacciones ancladas en cadena.
+// Score operativo local — una funcion deterministica sobre la telemetria del
+// daemon. No es estado publico de cadena ni debe presentarse como tal.
 //
 // Moderado a proposito: el silencio y la insolvencia cuestan, la conducta
 // sostenida recupera de a poco. No es lapidario — es memoria con perdon.
@@ -27,8 +26,10 @@ export interface ScoreResult {
 
 interface LogEntryLike {
   ts: number;
+  trigger: 'heartbeat' | 'manual';
   ok: boolean;
   verdict: boolean | null;
+  txId: string | null;
 }
 
 export function levelOf(score: number): ScoreLevel {
@@ -57,20 +58,63 @@ export function computeScore(
     else counts.failed++;
   };
 
-  const applyEntry = (e: LogEntryLike) =>
-    apply(!e.ok ? 'failed' : e.verdict ? 'green' : 'red');
+  const seenTxIds = new Set<string>();
+  const ordered = [...entries]
+    .sort((a, b) => a.ts - b.ts)
+    .filter((entry) => {
+      if (!entry.ok || !entry.txId) return true;
+      const id = entry.txId.toLowerCase();
+      if (seenTxIds.has(id)) return false;
+      seenTxIds.add(id);
+      return true;
+    });
 
-  if (heartbeatSec && entries.length > 0) {
+  // Manual green events never repair credibility. Only sustained automatic
+  // heartbeats recover it; red and failed events always count.
+  const eventOf = (e: LogEntryLike): ScoreEvent | null => {
+    if (!e.ok || e.verdict === null) return 'failed';
+    if (!e.verdict) return 'red';
+    return e.trigger === 'heartbeat' ? 'green' : null;
+  };
+
+  if (heartbeatSec && ordered.length > 0) {
     const step = heartbeatSec * 1000;
-    let idx = 0;
-    for (let p = entries[0].ts; p < nowMs; p += step) {
-      const inPeriod: LogEntryLike[] = [];
-      while (idx < entries.length && entries[idx].ts < p + step) inPeriod.push(entries[idx++]);
-      if (inPeriod.length === 0) apply('gap');
-      else inPeriod.forEach(applyEntry);
+    const firstHeartbeat = ordered.find((entry) => entry.trigger === 'heartbeat');
+    if (!firstHeartbeat) {
+      ordered.map(eventOf).filter((event): event is ScoreEvent => event !== null).forEach(apply);
+      return { score, level: levelOf(score), ...counts };
     }
+    let idx = 0;
+    while (idx < ordered.length && ordered[idx].ts < firstHeartbeat.ts) {
+      const event = eventOf(ordered[idx++]);
+      if (event) apply(event);
+    }
+    const periodCount = Math.max(0, Math.ceil((nowMs - firstHeartbeat.ts) / step));
+    const periods = new Map<number, ScoreEvent[]>();
+    for (; idx < ordered.length; idx++) {
+      const bucket = Math.floor((ordered[idx].ts - firstHeartbeat.ts) / step);
+      if (bucket < 0 || bucket >= periodCount) continue;
+      const event = eventOf(ordered[idx]);
+      if (event) periods.set(bucket, [...(periods.get(bucket) ?? []), event]);
+    }
+    const applyGaps = (count: number) => {
+      if (count <= 0) return;
+      counts.gaps += count;
+      score = Math.max(0, score + SCORE_RULES.gap * count);
+    };
+    let nextPeriod = 0;
+    for (const [period, events] of [...periods.entries()].sort((a, b) => a[0] - b[0])) {
+      applyGaps(period - nextPeriod);
+      // At most one outcome per period; the most severe event wins.
+      if (events.includes('red')) apply('red');
+      else if (events.includes('failed')) apply('failed');
+      else if (events.includes('green')) apply('green');
+      else apply('gap');
+      nextPeriod = period + 1;
+    }
+    applyGaps(periodCount - nextPeriod);
   } else {
-    entries.forEach(applyEntry);
+    ordered.map(eventOf).filter((event): event is ScoreEvent => event !== null).forEach(apply);
   }
 
   return { score, level: levelOf(score), ...counts };

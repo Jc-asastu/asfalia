@@ -16,7 +16,7 @@ const STR = {
     score_good: 'good',
     score_watch: 'under watch',
     score_poor: 'poor',
-    score_note: 'Derived deterministically from the public emission record — anyone can recompute it. Solvent beats recover it slowly (+1); a gap costs −6; an insolvent attestation −12. Memory with forgiveness, not a verdict for life.',
+    score_note: 'Local operational indicator derived from the daemon heartbeat. Automatic solvent beats recover it slowly (+1); a gap costs −6; an insolvent attestation −12. Verify the certificate itself on-chain.',
     score_breakdown: (g: number, r: number, ga: number) => `${g} solvent · ${r} insolvent · ${ga} gaps`,
 
     // Flujo publico + consola + tour
@@ -76,7 +76,7 @@ const STR = {
     role_entity: 'Entity',
     role_entity_desc: 'I certify my solvency. This console runs on my machine — my books never leave it. No login: possession is authentication.',
     role_auditor: 'Auditor / counterparty',
-    role_auditor_desc: 'I verify. This view reads only the public chain: verdict, validity, roots, history. No login — everything here is already public.',
+    role_auditor_desc: 'I verify the public chain state: verdict, validity and commitments. No login — everything shown here is already public.',
     role_client: 'Client of the entity',
     role_client_desc: 'I check that my balance is counted. I only see my own account and sibling hashes — never another balance.',
     role_change: 'change role',
@@ -121,6 +121,7 @@ const STR = {
     phase_rejected_expired: 'REJECTED: the certificate has expired',
     phase_rejected_insolvent: 'REJECTED: the certificate does not prove solvency',
     phase_failed_attest: 'Attestation failed',
+    phase_failed_history: 'Attestation completed, but local history persistence failed',
     phase_failed_settle: 'Settlement failed',
 
     // Certificate
@@ -150,7 +151,7 @@ const STR = {
 
     // History
     tab_history: 'History · heartbeat',
-    hist_banner: 'Emission history — every certificate points to its on-chain transaction; a gap means the entity chose not to prove',
+    hist_banner: 'Local daemon telemetry — successful rows point to on-chain transactions; verify those transactions independently',
     hist_title: 'Certificate heartbeat',
     hist_beating: (s: number) => `emitting every ${s}s`,
     hist_next: (s: number) => `next in ${s}s`,
@@ -158,7 +159,7 @@ const STR = {
     hist_gap: 'No attestation',
     hist_gap_legend: 'chose not to prove',
     hist_gap_note:
-      'No certificate was emitted in this period. The daemon is automated — a gap is not an accident, it is the entity unplugging its own heartbeat. Silence, recorded.',
+      'No certificate was emitted in this local daemon period. Treat this as operational telemetry and verify the public certificate state on-chain.',
     hist_failed: 'Emission failed',
     hist_emitted: 'Emitted',
     hist_trigger: 'Trigger',
@@ -219,7 +220,7 @@ const STR = {
     score_good: 'buena',
     score_watch: 'en observación',
     score_poor: 'pobre',
-    score_note: 'Derivado determinísticamente del historial público de emisiones — cualquiera puede recomputarlo. Los latidos solventes lo recuperan de a poco (+1); un hueco cuesta −6; una attestación insolvente −12. Memoria con perdón, no condena de por vida.',
+    score_note: 'Indicador operativo local derivado del latido del daemon. Los latidos automáticos solventes recuperan de a poco (+1); un hueco cuesta −6; una attestación insolvente −12. Verificá el certificado en cadena.',
     score_breakdown: (g: number, r: number, ga: number) => `${g} solventes · ${r} insolventes · ${ga} huecos`,
 
     landing_enter: 'Entrar al portal',
@@ -278,7 +279,7 @@ const STR = {
     role_entity: 'Entidad',
     role_entity_desc: 'Certifico mi solvencia. Esta consola corre en mi máquina — mis libros no salen de acá. Sin login: la posesión es la autenticación.',
     role_auditor: 'Auditor / contraparte',
-    role_auditor_desc: 'Verifico. Esta vista lee solo la cadena pública: veredicto, vigencia, raíces, historial. Sin login — todo lo que muestra ya es público.',
+    role_auditor_desc: 'Verifico el estado público de la cadena: veredicto, vigencia y compromisos. Sin login — todo lo que muestra ya es público.',
     role_client: 'Cliente de la entidad',
     role_client_desc: 'Chequeo que mi saldo esté contado. Veo solo mi propia cuenta y hashes de hermanos — jamás otro saldo.',
     role_change: 'cambiar rol',
@@ -321,6 +322,7 @@ const STR = {
     phase_rejected_expired: 'RECHAZADO: el certificado está vencido',
     phase_rejected_insolvent: 'RECHAZADO: el certificado no acredita solvencia',
     phase_failed_attest: 'Falló la attestación',
+    phase_failed_history: 'La attestación terminó, pero falló el guardado del historial local',
     phase_failed_settle: 'Falló el settlement',
 
     kicker: 'Certificado de solvencia · prueba de conocimiento cero',
@@ -348,7 +350,7 @@ const STR = {
     settle_tx: 'tx',
 
     tab_history: 'Historial · latido',
-    hist_banner: 'Historial de emisiones — cada certificado apunta a su transacción on-chain; un hueco significa que la entidad eligió no probar',
+    hist_banner: 'Telemetría local del daemon — las filas exitosas apuntan a transacciones on-chain; verificalas de forma independiente',
     hist_title: 'Latido de certificados',
     hist_beating: (s: number) => `emitiendo cada ${s}s`,
     hist_next: (s: number) => `próximo en ${s}s`,
@@ -356,7 +358,7 @@ const STR = {
     hist_gap: 'Sin attestación',
     hist_gap_legend: 'eligió no probar',
     hist_gap_note:
-      'En este período no se emitió certificado. El daemon es automático — un hueco no es un accidente: es la entidad desenchufando su propio latido. El silencio, registrado.',
+      'En este período local del daemon no se emitió certificado. Tomalo como telemetría operativa y verificá el certificado público en cadena.',
     hist_failed: 'Falló la emisión',
     hist_emitted: 'Emitido',
     hist_trigger: 'Disparo',
@@ -417,11 +419,16 @@ const I18nContext = createContext<{ t: Strings; lang: Lang; setLang: (l: Lang) =
 });
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>(
-    () => (localStorage.getItem('asfalia-lang') as Lang) || 'en',
-  );
+  const [lang, setLang] = useState<Lang>(() => {
+    try {
+      const saved = window.localStorage.getItem('asfalia-lang');
+      return saved === 'en' || saved === 'es' ? saved : 'en';
+    } catch {
+      return 'en';
+    }
+  });
   useEffect(() => {
-    localStorage.setItem('asfalia-lang', lang);
+    try { window.localStorage.setItem('asfalia-lang', lang); } catch { /* storage unavailable */ }
     document.documentElement.lang = lang;
   }, [lang]);
   return (

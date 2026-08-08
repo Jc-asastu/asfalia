@@ -7,20 +7,23 @@
   "license": "Apache-2.0",
   "scripts": {
     "compile": "compact compile contracts/asfalia.compact contracts/managed/asfalia",
-    "build": "npx tsc --noEmit || true",
-    "setup": "npx tsx src/setup.ts",
-    "deploy": "npx tsx src/deploy.ts",
-    "attest": "npx tsx src/attest.ts",
-    "api": "npx tsx api/server.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && npm run ui:build",
+    "setup": "tsx src/setup.ts",
+    "deploy": "tsx src/deploy.ts",
+    "attest": "tsx src/attest.ts",
+    "api": "tsx api/server.ts",
     "ui:build": "npm --prefix ui run build",
     "dashboard": "npm run ui:build && npm run api",
-    "check-balance": "npx tsx src/check-balance.ts",
-    "network": "npx tsx src/network.ts",
+    "check-balance": "tsx src/check-balance.ts",
+    "network": "tsx src/network.ts",
     "proof-server:start": "docker compose up -d",
     "proof-server:stop": "docker compose down",
-    "clean": "rm -rf contracts/managed .midnight-state.json .midnight-wallet-state",
-    "test": "npx tsx scripts/circuit-check.ts",
+    "clean": "node --experimental-strip-types scripts/clean.ts",
+    "test": "tsx scripts/circuit-check.ts",
     "test:access": "node --experimental-strip-types scripts/access-check.ts",
+    "test:runtime": "node --experimental-strip-types scripts/runtime-check.ts",
+    "test:score": "node --experimental-strip-types scripts/score-check.ts",
     "test:e2e": "tsx scripts/e2e-check.ts"
   },
   "dependencies": {
@@ -37,12 +40,12 @@
     "@midnight-ntwrk/wallet-sdk": "1.2.0",
     "@scure/bip39": "2.2.0",
     "rxjs": "^7.8.2",
-    "ws": "^8.21.1"
+    "ws": "^8.21.1",
+    "tsx": "^4.23.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",
-    "tsx": "^4.23.1",
     "typescript": "^6.0.3"
   },
   "engines": {

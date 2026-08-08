@@ -29,6 +29,7 @@ export async function verifyInclusionLocally(
     return { verified: false, reason: 'no_attest', leafHex: '', rootHex: '' };
   }
   if (!/^[0-9]+$/.test(expectedCents)) throw new Error('balance must be a non-negative integer');
+  if (BigInt(expectedCents) > (1n << 64n) - 1n) throw new Error('balance exceeds Uint<64>');
   if (proof.path.length !== 4) throw new Error('a 16-leaf Merkle proof must have exactly 4 siblings');
 
   const accountBytes = new TextEncoder().encode(`asfalia:account:${proof.account}`);
