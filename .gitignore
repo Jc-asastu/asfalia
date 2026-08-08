@@ -64,3 +64,6 @@ reference/
 
 # log de emisiones (estado de runtime, cada fila apunta a su tx)
 data/attest-log.json
+
+# estado de la wallet de contraparte (demo)
+.cp-state/

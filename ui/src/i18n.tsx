@@ -118,6 +118,9 @@ const STR = {
     phase_verified: 'Verified on-chain',
     phase_settling: 'Accepting certificate — the chain checks validity',
     phase_settled: 'Certificate accepted on-chain',
+    phase_paying: 'Certificate accepted — counterparty payment in flight…',
+    phase_settled_paid: 'Certificate accepted · counterparty paid',
+    payment_line: (n: number, tx: string) => `payment ${n.toLocaleString()} tNIGHT · tx ${tx}…`,
     phase_rejected_expired: 'REJECTED: the certificate has expired',
     phase_rejected_insolvent: 'REJECTED: the certificate does not prove solvency',
     phase_failed_attest: 'Attestation failed',
@@ -313,6 +316,9 @@ const STR = {
     phase_verified: 'Verificado en cadena',
     phase_settling: 'Aceptando certificado — la cadena verifica vigencia',
     phase_settled: 'Certificado aceptado en cadena',
+    phase_paying: 'Certificado aceptado — pago de contraparte en vuelo…',
+    phase_settled_paid: 'Certificado aceptado · contraparte pagó',
+    payment_line: (n: number, tx: string) => `pago ${n.toLocaleString()} tNIGHT · tx ${tx}…`,
     phase_rejected_expired: 'RECHAZADO: el certificado está vencido',
     phase_rejected_insolvent: 'RECHAZADO: el certificado no acredita solvencia',
     phase_failed_attest: 'Falló la attestación',
@@ -425,6 +431,7 @@ export const useI18n = () => useContext(I18nContext);
 
 /** Traduce un codigo de fase del server. */
 export function phaseText(t: Strings, code: string): string {
+  if (code.startsWith('paying')) return t.phase_paying;
   const key = `phase_${code}` as keyof Strings;
   const v = t[key];
   return typeof v === 'string' ? v : code;

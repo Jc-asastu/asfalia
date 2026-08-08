@@ -143,6 +143,12 @@ export function Certificate({ state, now }: { state: ServerState | null; now: nu
             ) : job.txId ? (
               <span className="accepted">
                 ✓ {phaseText(t, job.phase)} — {t.settle_tx} {job.txId.slice(0, 22)}…
+                {job.paymentTxId && (
+                  <>
+                    <br />
+                    ⛁ {t.payment_line(job.paymentTnight ?? 0, job.paymentTxId.slice(0, 22))}
+                  </>
+                )}
               </span>
             ) : null}
           </div>

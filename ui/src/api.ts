@@ -16,6 +16,8 @@ export type AttestJob = {
   finishedAt: number | null;
   durationSec: number | null;
   txId: string | null;
+  paymentTxId: string | null;
+  paymentTnight: number | null;
   error: string | null;
 };
 

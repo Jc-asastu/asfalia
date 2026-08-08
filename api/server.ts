@@ -21,6 +21,7 @@ import {
 import { PRIVATE_STATE_ID } from '../src/contract';
 import { inclusionProof, verifyInclusion, merkleRoot } from '../src/merkle';
 import { computeScore } from '../src/score';
+import { ensureCounterparty, settlementPayment, PAYMENT_UNITS, TNIGHT } from '../src/payment';
 
 const PORT = Number(process.env.PORT ?? 3300);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -81,11 +82,13 @@ type Job = {
   finishedAt: number | null;
   durationSec: number | null;
   txId: string | null;
+  paymentTxId: string | null;
+  paymentTnight: number | null;
   error: string | null;
 };
 const job: Job = {
   kind: null, running: false, phase: 'idle', startedAt: null, finishedAt: null,
-  durationSec: null, txId: null, error: null,
+  durationSec: null, txId: null, paymentTxId: null, paymentTnight: null, error: null,
 };
 
 /** Corre attest o settle con el mismo ciclo de vida de job.
@@ -99,11 +102,31 @@ async function runJob(kind: 'attest' | 'settle') {
   job.startedAt = Date.now();
   job.finishedAt = null;
   job.txId = null;
+  job.paymentTxId = null;
+  job.paymentTnight = null;
   job.error = null;
   try {
     const { txId } = kind === 'attest' ? await conn.attest() : await conn.settle();
     job.txId = txId;
     job.phase = kind === 'attest' ? 'verified' : 'settled';
+    if (kind === 'settle') {
+      // El certificado fue aceptado: la contraparte paga. Transferencia
+      // unshielded real de tNIGHT, registrada en cadena. Si el pago falla,
+      // el settle sigue siendo valido — se informa aparte.
+      try {
+        job.phase = 'paying';
+        const cp = await ensureCounterparty(
+          conn.walletCtx, conn.network, conn.networkConfig, conn.entitySeed,
+          (m) => { job.phase = `paying:${m}`; },
+        );
+        job.paymentTxId = await settlementPayment(cp, conn.entityAddress);
+        job.paymentTnight = Number(PAYMENT_UNITS / TNIGHT);
+        job.phase = 'settled_paid';
+      } catch (pe: any) {
+        job.phase = 'settled';
+        console.error('  pago de contraparte fallo:', pe?.message ?? pe);
+      }
+    }
   } catch (e: any) {
     const msg: string = e?.cause?.message ?? e?.message ?? String(e);
     job.error = msg;

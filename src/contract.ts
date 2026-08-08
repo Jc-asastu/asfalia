@@ -88,7 +88,8 @@ export async function connectAsfalia(onProgress: (msg: string) => void = () => {
   const { Asfalia, compiled } = await loadCompiledContract();
 
   onProgress('connecting wallet');
-  const walletCtx = await createWallet({ network, networkConfig, seed: getOrCreateWallet(network).seed });
+  const entitySeed = getOrCreateWallet(network).seed;
+  const walletCtx = await createWallet({ network, networkConfig, seed: entitySeed });
   onProgress('syncing');
   await walletCtx.wallet.waitForSyncedState();
   await persistWalletState(network, walletCtx);
@@ -146,5 +147,10 @@ export async function connectAsfalia(onProgress: (msg: string) => void = () => {
     await walletCtx.wallet.stop();
   }
 
-  return { network, deployment, walletCtx, providers, deployed, Asfalia, readLedger, attest, settle, close };
+  const entityAddress = walletCtx.unshieldedKeystore.getBech32Address().toString();
+
+  return {
+    network, networkConfig, deployment, walletCtx, providers, deployed, Asfalia,
+    entitySeed, entityAddress, readLedger, attest, settle, close,
+  };
 }
