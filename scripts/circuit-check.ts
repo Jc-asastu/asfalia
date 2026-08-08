@@ -17,6 +17,8 @@ import { witnesses, type ClientAccount, type AsfaliaPrivateState } from "../src/
 import { buildTree, inclusionProof, verifyInclusion, merkleRoot } from "../src/merkle.js";
 
 const NONCE = new Uint8Array(32).fill(7);
+const OWNER_SECRET = new Uint8Array(32).fill(201);
+const OTHER_SECRET = new Uint8Array(32).fill(202);
 
 const ASSETS = [500_00n, 1200_00n, 90_00n, 0n, 3000_00n, 45_00n, 800_00n, 10_00n]; // 5645,00
 const bytes = (fill: number) => new Uint8Array(32).fill(fill);
@@ -38,12 +40,22 @@ const INSOLVENT_CLIENTS = makeClients([
 function attest(
   assets: bigint[],
   clients: ClientAccount[],
-  opts: { claimed?: bigint; tolerance?: bigint; validity?: bigint } = {},
+  opts: {
+    claimed?: bigint;
+    ownerSecret?: Uint8Array;
+    tolerance?: bigint;
+    validity?: bigint;
+  } = {},
 ) {
   const contract = new Contract<AsfaliaPrivateState>(witnesses);
   const privateState: AsfaliaPrivateState = { assets, assetsNonce: NONCE, clients };
   const { currentPrivateState, currentContractState, currentZswapLocalState } =
-    contract.initialState(createConstructorContext(privateState, "0".repeat(64)));
+    contract.initialState(
+      createConstructorContext(privateState, "0".repeat(64)),
+      OWNER_SECRET,
+      opts.tolerance ?? 3600n,
+      opts.validity ?? 300n,
+    );
   const ctx: CircuitContext<AsfaliaPrivateState> = {
     currentPrivateState,
     currentZswapLocalState,
@@ -52,9 +64,8 @@ function attest(
   };
   const next = contract.impureCircuits.attest(
     ctx,
+    opts.ownerSecret ?? OWNER_SECRET,
     opts.claimed ?? 0n,
-    opts.tolerance ?? 3600n,
-    opts.validity ?? 300n,
   );
   return { contract, ctx: next.context, ledger: ledger(next.context.currentQueryContext.state) };
 }
@@ -178,15 +189,33 @@ console.log("\n  Circuito attest — commitment de activos y anclaje temporal\n"
 }
 
 expectThrows(
+  "una clave distinta no puede reemplazar el certificado",
+  () => attest(ASSETS, SOLVENT_CLIENTS, { ownerSecret: OTHER_SECRET }),
+  "only the Asfalia owner can attest",
+);
+
+expectThrows(
   "un timestamp del futuro es rechazado (no se puede posdatar)",
   () => attest(ASSETS, SOLVENT_CLIENTS, { claimed: 999_999n }),
   "attest timestamp is in the future",
 );
 
 expect(
-  "validUntil queda fijado en claimed + validez",
+  "validUntil usa la validez fijada al desplegar",
   attest(ASSETS, SOLVENT_CLIENTS, { validity: 120n }).ledger.validUntil,
   120n,
+);
+
+expectThrows(
+  "el constructor rechaza una tolerancia nula",
+  () => attest(ASSETS, SOLVENT_CLIENTS, { tolerance: 0n }),
+  "attest tolerance must be positive",
+);
+
+expectThrows(
+  "el constructor rechaza una vigencia mayor a 31 dias",
+  () => attest(ASSETS, SOLVENT_CLIENTS, { validity: 2_678_401n }),
+  "certificate validity exceeds 31 days",
 );
 
 console.log("\n  Circuito settle — la cadena decide\n");
@@ -211,13 +240,9 @@ expectThrows(
 );
 
 expectThrows(
-  "certificado con ventana agotada es rechazado por vencido",
-  () => {
-    // validity 0: validUntil == claimed == blockTime -> blockTimeLt(0) es falso.
-    const r = attest(ASSETS, SOLVENT_CLIENTS, { validity: 0n });
-    r.contract.impureCircuits.settle(r.ctx);
-  },
-  "certificate has expired",
+  "el constructor no permite certificados ya vencidos",
+  () => attest(ASSETS, SOLVENT_CLIENTS, { validity: 0n }),
+  "certificate validity must be positive",
 );
 
 console.log(`\n  ${failures === 0 ? "Suite verde" : `${failures} fallas`}\n`);

@@ -12,7 +12,9 @@ ya cuenta toda la historia solo. Lo único que se dispara en vivo es el settle
 | Cadencia del heartbeat | 120 s | 86400 s (diaria) |
 | Ventana de vigencia | 300 s | 30 días (GENIUS Act) |
 
-Arranque: `ASFALIA_HEARTBEAT_SEC=120 ASFALIA_VALIDITY=300 npm run api`
+La vigencia se fija al desplegar: `ASFALIA_TOL=300 ASFALIA_VALIDITY=300 npm run setup`.
+Arranque posterior: `ASFALIA_HEARTBEAT_SEC=120 npm run api` (con
+`ASFALIA_OWNER_SECRET` disponible en el entorno).
 
 ## Pre-pitch — la coreografía del grid (empieza T-12 min)
 
@@ -93,7 +95,7 @@ git checkout -- data/demo-users.json data/demo-entity.json
 # limpiar historial para re-armar la coreografia
 rm -f data/attest-log.json
 # reiniciar el latido
-ASFALIA_HEARTBEAT_SEC=120 ASFALIA_VALIDITY=300 npm run api
+ASFALIA_HEARTBEAT_SEC=120 npm run api
 ```
 
 ## Criterio de aceptación (HITO 6)

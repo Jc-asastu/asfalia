@@ -81,10 +81,15 @@ flowchart LR
   server reuses the contract's own exported pure circuits (`leafHash`, `pairHash`)
   for inclusion proofs — hashes match by construction, not by convention.
 - **Time anchoring without an oracle.** The prover declares `now`; the circuit
-  requires `blockTimeGte(now) && blockTimeLt(now + tolerance)` — the declared
+  requires `blockTimeGte(now) && blockTimeLt(now + attestTolerance)` — the declared
   timestamp must sit inside a window around the actual block time, so attestations
-  can be neither backdated nor postdated. Block time is epoch **seconds**.
-- **Expiry as circuit law.** `attest` records `validUntil = now + validitySecs`.
+  can be neither backdated nor postdated. The tolerance is fixed in the constructor,
+  rather than supplied by each caller. Block time is epoch **seconds**.
+- **Authorized issuance.** The constructor stores a domain-separated hash of the
+  entity's private authority secret. `attest` proves knowledge of that secret, so a
+  third party cannot replace the current certificate.
+- **Expiry as circuit law.** `attest` records `validUntil = now + certificateValidity`,
+  where validity is also fixed in the constructor.
   The `settle` circuit — the counterparty accepting the certificate — asserts
   `verdict && blockTimeLt(validUntil)`. Past the window, the transaction fails at
   the assert. Rejection is consensus, not UI.
@@ -106,18 +111,19 @@ Requirements: Node 22+, Docker (Compose v2), Compact compiler 0.31.1
 npm install
 npm run compile          # Compact -> ZK circuits + prover/verifier keys
 docker compose up -d     # local devnet: node + indexer + proof server
-npm run setup            # deploy (genesis-funded wallet, no faucet needed)
+export ASFALIA_OWNER_SECRET="$(openssl rand -hex 32)" # keep in a secret manager
+npm run setup            # deploy; the same secret authorizes every future attest
 npm test                 # 19-case circuit suite (simulator, no proof server)
 npm run attest           # one-shot: real ZK proof -> verdict on-chain
 npm run dashboard        # build UI + serve API on http://localhost:3300
 ```
 
-Deploying to the public **preview** testnet is one flag: `npm run setup -- --network preview`
-(the deploy script generates a wallet, prints the faucet URL and waits for funding).
-**Asfalia is live on preview** — contract
-`59ac13f9812371f95b1df9991392509483a89cd27db12c723d0f5eff2a34d710`, emitting a
-heartbeat certificate; see any of its transactions on
-[Night Scan](https://explorer.preview.midnight.network), Midnight's own explorer.
+Deploying to the public **preview** testnet is one flag:
+`ASFALIA_OWNER_SECRET=<64-hex> npm run setup -- --network preview` (the deploy script
+generates a wallet, prints the faucet URL and waits for funding). Public networks
+require the authority secret explicitly; it is never logged or written to project
+state. `ASFALIA_TOL` and `ASFALIA_VALIDITY` are read only at deployment because they
+become immutable contract policy.
 
 The dashboard opens with a **role picker** — the separation is the product
 (see [docs/deployment.md](docs/deployment.md) for who runs what, where):

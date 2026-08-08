@@ -34,12 +34,17 @@ npm install
 npm run compile                 # Compact -> circuits + keys (needs compact 0.31.1)
 docker compose up -d proof-server
 npm run network preview
+export ASFALIA_OWNER_SECRET="$(openssl rand -hex 32)"  # keep in a secret manager
+export ASFALIA_TOL=300                              # fixed at deployment
+export ASFALIA_VALIDITY=2592000                     # 30 days, fixed at deployment
 npm run setup                   # generates wallet, prints faucet URL, deploys
-ASFALIA_HEARTBEAT_SEC=86400 ASFALIA_VALIDITY=2592000 npm run dashboard
+ASFALIA_HEARTBEAT_SEC=86400 npm run dashboard
 ```
 
 That last line is the daily heartbeat with a 30-day validity window — the
-GENIUS Act cadence. Replace the books in `data/demo-entity.json` and
+GENIUS Act cadence. The same `ASFALIA_OWNER_SECRET` must be available to the
+daemon for every future attestation; losing it requires a new deployment. It is
+never printed or stored in `.midnight-state.json`. Replace the books in `data/demo-entity.json` and
 `data/demo-users.json` with real exports (same shape).
 
 **Why a daemon and not a web page:** a page depends on someone keeping a tab
@@ -50,8 +55,12 @@ heartbeat never depends on a human remembering anything — and a *gap* in the
 history can then only mean a deliberate unplug. Install with:
 
 ```bash
-sudo bash scripts/install-daemon.sh
+sudo --preserve-env=ASFALIA_OWNER_SECRET bash scripts/install-daemon.sh
 ```
+
+The installer copies that authority secret to `/etc/asfalia/asfalia.env` with
+owner-only permissions so systemd can attest after a reboot. If the file already
+exists it is preserved; the installer never rotates the contract authority.
 
 The local console UI lives at `http://localhost:3300/console` — reachable only
 from the entity's own machine, never linked from the public portal. The public
