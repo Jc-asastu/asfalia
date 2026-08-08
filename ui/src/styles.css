@@ -914,3 +914,25 @@ button { font: inherit; cursor: pointer; }
 :root[data-theme='light'] .ledger-block td { font-weight: 500; }
 :root[data-theme='light'] .clause dd,
 :root[data-theme='light'] .file-no { font-weight: 600; }
+
+/* Modo claro: botones a tinta — el oro de fondo se lavaba con texto papel */
+:root[data-theme='light'] .attest-btn {
+  background: var(--white);        /* tinta de grabado */
+  color: var(--black-light);       /* papel */
+  font-weight: 700;
+}
+:root[data-theme='light'] .attest-btn:hover:not(:disabled) {
+  background: #2c3a4d;
+  box-shadow: 0 2px 14px rgba(27, 36, 48, 0.35);
+}
+:root[data-theme='light'] .reveal-btn {
+  border-color: var(--white);
+  color: var(--white);
+  font-weight: 700;
+}
+:root[data-theme='light'] .reveal-btn:hover:not(:disabled) {
+  background: var(--black-lighter);
+  box-shadow: none;
+}
+:root[data-theme='light'] .role-cta { color: var(--gold); font-weight: 700; }
+:root[data-theme='light'] .tour-primary { background: var(--white); color: var(--black-light); }
