@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 import * as Rx from 'rxjs';
 
 import { createWallet, persistWalletState, unshieldedToken, type WalletContext } from './wallet';
+import { MidnightBech32m, UnshieldedAddress } from '@midnight-ntwrk/wallet-sdk-address-format';
+import { getNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CP_DIR = path.resolve(__dirname, '..', '.cp-state');
@@ -45,11 +47,14 @@ async function transferUnshielded(
   toAddress: string,
   amount: bigint,
 ): Promise<string> {
+  // El SDK no acepta el bech32 como string pelado: hay que decodificarlo al
+  // tipo UnshieldedAddress (verificado en wallet-sdk-address-format).
+  const receiver = MidnightBech32m.parse(toAddress).decode(UnshieldedAddress, getNetworkId());
   const recipe = await from.wallet.transferTransaction(
     [
       {
         type: 'unshielded',
-        outputs: [{ type: unshieldedToken().raw, receiverAddress: toAddress as any, amount }],
+        outputs: [{ type: unshieldedToken().raw, receiverAddress: receiver as any, amount }],
       },
     ],
     { shieldedSecretKeys: from.shieldedSecretKeys, dustSecretKey: from.dustSecretKey },
