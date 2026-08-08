@@ -2,8 +2,9 @@
 
 *Proof of Solvency that expires.* Hack Buenos Aires, 7-8 agosto 2026, Beginner Track.
 
-`asfalia`: en la administración sumeria, el inspector recaudador — el funcionario que verificaba
-lo declarado. El auditor, literal.
+`Asfalia` viene del griego **ασφάλεια** (*asfáleia*): seguridad, certeza, estar a salvo;
+también seguro en el sentido de *insurance*. En el contexto financiero del producto, esa
+promesa toma forma como **solvencia**: la seguridad de que los activos cubren las obligaciones.
 
 ---
 
