@@ -60,7 +60,12 @@ async function transferUnshielded(
     { shieldedSecretKeys: from.shieldedSecretKeys, dustSecretKey: from.dustSecretKey },
     { ttl: new Date(Date.now() + 30 * 60 * 1000) },
   );
-  const finalized = await from.wallet.finalizeRecipe(recipe);
+  // Los inputs unshielded requieren la firma del keystore: signRecipe con el
+  // callback de firma (mismo patron que la registracion de DUST del template).
+  const signed = await from.wallet.signRecipe(recipe, (data: Uint8Array) =>
+    from.unshieldedKeystore.signData(data),
+  );
+  const finalized = await from.wallet.finalizeRecipe(signed);
   const submitted = await from.wallet.submitTransaction(finalized);
   return String(submitted);
 }
