@@ -89,16 +89,11 @@ jobs:
           echo "$HOME/.compact/bin" >> "$GITHUB_PATH"
 
       - name: Install toolchain ${{ env.COMPACT_VERSION }}
-        run: |
-          # La documentacion de Midnight no publica la sintaxis de pin de version:
-          # se prueban las dos formas conocidas y, si ninguna existe, se cae al
-          # ultimo toolchain con un warning visible en el log.
-          compact update "$COMPACT_VERSION" \
-            || compact update "+$COMPACT_VERSION" \
-            || {
-              echo "::warning::No se pudo fijar Compact $COMPACT_VERSION; se instala el toolchain mas reciente."
-              compact update
-            }
+        # Sintaxis confirmada contra el runner (la doc de Midnight no la publica):
+        # `compact update <version>` instala esa version y la deja por defecto.
+        # Sin fallback a propósito: si la version fijada desaparece, el CI tiene
+        # que romper, no compilar en silencio con otro compilador.
+        run: compact update "$COMPACT_VERSION"
 
       - name: Toolchain en uso
         run: |

@@ -2,8 +2,9 @@
 // sin proof server: verifica la LOGICA, no la prueba. La prueba real
 // se ejercita end-to-end contra la devnet (npm run attest).
 //
-// En el simulador el tiempo de bloque es 0: los casos temporales se
-// construyen alrededor de ese hecho (claimed=0 es "ahora" simulado).
+// El tiempo de bloque del simulador arranca en 0 (claimed=0 es "ahora"),
+// pero es MOVIBLE: `atBlockTime` adelanta el reloj de la cadena, que es
+// como se ejercita el vencimiento — el diferencial del proyecto.
 
 import {
   type CircuitContext,
@@ -89,6 +90,15 @@ function expectThrows(name: string, fn: () => void, fragment: string) {
   }
 }
 const hex = (b: Uint8Array) => Buffer.from(b).toString("hex");
+
+/**
+ * Adelanta el reloj de la cadena para el contexto dado. El certificado ya
+ * esta emitido: lo unico que cambia es el bloque contra el que se lo presenta.
+ */
+function atBlockTime(ctx: CircuitContext<AsfaliaPrivateState>, seconds: bigint) {
+  const qc = ctx.currentQueryContext;
+  qc.block = { ...qc.block, secondsSinceEpoch: seconds, lastBlockTime: seconds };
+}
 
 console.log("\n  Circuito attest — veredicto\n");
 
@@ -240,10 +250,49 @@ expectThrows(
 );
 
 expectThrows(
-  "el constructor no permite certificados ya vencidos",
+  "el constructor rechaza vigencia cero (certificado nacido vencido)",
   () => attest(ASSETS, SOLVENT_CLIENTS, { validity: 0n }),
   "certificate validity must be positive",
 );
+
+// ── El vencimiento, que es el diferencial: la MISMA prueba criptograficamente
+// valida deja de ser aceptada cuando el bloque pasa la ventana. Los tres casos
+// rodean el borde exacto, porque el circuito compara con `blockTimeLt`.
+
+{
+  const r = attest(ASSETS, SOLVENT_CLIENTS, { validity: 300n });
+  atBlockTime(r.ctx, r.ledger.validUntil - 1n);
+  try {
+    r.contract.impureCircuits.settle(r.ctx);
+    ok("un segundo antes de validUntil el certificado todavia se acepta");
+  } catch (e: any) {
+    fail("un segundo antes de validUntil el certificado todavia se acepta", e?.message ?? String(e));
+  }
+}
+
+{
+  const r = attest(ASSETS, SOLVENT_CLIENTS, { validity: 300n });
+  expectThrows(
+    "exactamente en validUntil ya esta vencido (la comparacion es estricta)",
+    () => {
+      atBlockTime(r.ctx, r.ledger.validUntil);
+      r.contract.impureCircuits.settle(r.ctx);
+    },
+    "certificate has expired",
+  );
+}
+
+{
+  const r = attest(ASSETS, SOLVENT_CLIENTS, { validity: 300n });
+  expectThrows(
+    "pasada la ventana, el MISMO certificado valido es rechazado por la cadena",
+    () => {
+      atBlockTime(r.ctx, r.ledger.validUntil + 3600n);
+      r.contract.impureCircuits.settle(r.ctx);
+    },
+    "certificate has expired",
+  );
+}
 
 console.log(`\n  ${failures === 0 ? "Suite verde" : `${failures} fallas`}\n`);
 process.exit(failures === 0 ? 0 : 1);
