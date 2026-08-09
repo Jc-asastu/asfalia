@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+  # Version del toolchain de Compact con la que se verifico el proyecto.
+  COMPACT_VERSION: "0.31.1"
+
+jobs:
+  typecheck:
+    name: Typecheck (src + api)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+  ui:
+    name: UI (typecheck + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+  contract:
+    name: Contract (compile + circuit suite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Cache Compact toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.compact
+          key: compact-${{ runner.os }}-${{ env.COMPACT_VERSION }}
+
+      - name: Install Compact developer tools
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf \
+            https://github.com/midnightntwrk/compact/releases/latest/download/compact-installer.sh | sh
+          echo "$HOME/.compact/bin" >> "$GITHUB_PATH"
+
+      - name: Install toolchain ${{ env.COMPACT_VERSION }}
+        # Sintaxis confirmada contra el runner (la doc de Midnight no la publica):
+        # `compact update <version>` instala esa version y la deja por defecto.
+        # Sin fallback a propósito: si la version fijada desaparece, el CI tiene
+        # que romper, no compilar en silencio con otro compilador.
+        run: compact update "$COMPACT_VERSION"
+
+      - name: Toolchain en uso
+        run: |
+          compact --version
+          compact compile --version
+
+      - name: Compilar contrato
+        run: npm run compile
+
+      - name: Typecheck de los scripts
+        run: npm run typecheck:scripts
+
+      - name: Suite de circuito
+        run: npm test
