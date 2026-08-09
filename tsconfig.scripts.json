@@ -1,0 +1,9 @@
+// Typecheck de los scripts (tests de circuito y e2e). Se separa del tsconfig
+// principal porque `scripts/circuit-check.ts` importa el contrato COMPILADO
+// (`contracts/managed/...`), que solo existe despues de `npm run compile`.
+// En CI corre despues del compile; en una maquina sin toolchain, no corre.
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*", "api/**/*", "scripts/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

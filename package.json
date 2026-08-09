@@ -7,7 +7,9 @@
   "license": "Apache-2.0",
   "scripts": {
     "compile": "compact compile contracts/asfalia.compact contracts/managed/asfalia",
-    "build": "npx tsc --noEmit || true",
+    "build": "npm run typecheck",
+    "typecheck": "npx tsc --noEmit -p tsconfig.json",
+    "typecheck:scripts": "npx tsc --noEmit -p tsconfig.scripts.json",
     "setup": "npx tsx src/setup.ts",
     "deploy": "npx tsx src/deploy.ts",
     "attest": "npx tsx src/attest.ts",
