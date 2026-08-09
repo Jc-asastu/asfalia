@@ -141,13 +141,20 @@ The dashboard opens with a **role picker** — the separation is the product
 
 ## Tests
 
-`npm test` runs a 19-case suite against the circuit simulator, covering the verdict
+`npm test` runs a 25-case suite against the circuit simulator, covering the verdict
 (including the exact-equality edge and the one-cent-over case), zero balance leakage
 into public state, circuit-root/server-root equality, real inclusion proofs, the
 hidden-account and lied-balance failure paths, commitment determinism and
 sensitivity, timestamp anchoring, and `settle` accepting fresh certificates while
-rejecting insolvent and expired ones. A lied number breaks exactly the test that
-should break.
+rejecting insolvent ones. Expiry is tested by moving the simulated chain clock
+around the exact boundary: accepted at `validUntil - 1`, rejected *at*
+`validUntil` (the comparison is strict) and an hour past it — the same
+certificate, the same proof, a later block. A lied number breaks exactly the
+test that should break.
+
+Every push runs it: typecheck (`src` + `api`), UI typecheck and build, and a
+job that installs the pinned Compact toolchain, compiles the contract and runs
+the suite ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ## Honest limits
 
