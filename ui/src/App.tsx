@@ -73,7 +73,10 @@ const CLIENT_TOUR: TourStep[] = [
   },
 ];
 
-const isConsole = window.location.pathname.startsWith('/console');
+// La consola vive en /console — pero la URL sola no alcanza. El servidor dice
+// si es la consola de la entidad o el sitio publico (`mode`), y en el publico
+// la consola no existe: no hay libros que mostrar del otro lado.
+const consolePath = window.location.pathname.startsWith('/console');
 
 function Shell() {
   const { t, lang, setLang } = useI18n();
@@ -86,7 +89,7 @@ function Shell() {
   }, [theme]);
   const [stage, setStage] = useState<Stage>('landing');
   const [subrole, setSubrole] = useState<Subrole | null>(null);
-  const [view, setView] = useState<View>(isConsole ? 'treasury' : 'auditor');
+  const [view, setView] = useState<View>(consolePath ? 'treasury' : 'auditor');
   const [accounts, setAccounts] = useState<{ account: string; name: string }[]>([]);
   const [state, setState] = useState<ServerState | null>(null);
   // Reloj: segundos epoch del server + tick local entre polls.
@@ -113,11 +116,20 @@ function Shell() {
       } catch { /* server reiniciando: el proximo poll lo levanta */ }
     };
     poll();
+    // La lista de cuentas sale de los libros: solo existe del lado de la
+    // entidad. En el sitio publico el endpoint no esta y esto queda vacio.
     getBook().then((b) => setAccounts(b.users.map(({ account, name }) => ({ account, name })))).catch(() => {});
     const p = setInterval(poll, 2000);
     const tk = setInterval(() => setNow(Math.floor(Date.now() / 1000) + offset.current), 1000);
     return () => { alive = false; clearInterval(p); clearInterval(tk); };
   }, []);
+
+  // El servidor manda: en modo publico no hay consola, aunque se escriba
+  // /console a mano en la barra de direcciones.
+  const isConsole = consolePath && state?.mode !== 'public';
+  useEffect(() => {
+    if (!isConsole && view === 'treasury') setView('auditor');
+  }, [isConsole, view]);
 
   const pickSubrole = (r: Subrole) => {
     setSubrole(r);
