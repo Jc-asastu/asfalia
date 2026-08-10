@@ -1,12 +1,20 @@
 /**
- * API de Asfalia — http nativo de Node, cero dependencias nuevas.
+ * CONSOLA DE LA ENTIDAD — http nativo de Node, cero dependencias nuevas.
  *
- * Mantiene UNA conexion viva al contrato (wallet sync es caro) y expone:
- *   GET  /api/state          estado publico + job de attest en curso
- *   GET  /api/book           libro privado (solo lo ve la entidad: corre en su maquina)
+ * Corre en la maquina de quien emite. Tiene los libros, la wallet y la clave
+ * de autoridad, asi que es la superficie sensible del sistema: por eso bindea
+ * a loopback (127.0.0.1) por default. Para exponer algo a internet esta el
+ * otro binario, `api/public-server.ts`, que no tiene nada de esto.
+ *
+ * Privado (solo aca):
+ *   GET  /api/book           libros completos
  *   PUT  /api/book           edita un item {side, index, cents} — momento adversarial
- *   POST /api/attest         dispara attest (async; el estado se sigue por /api/state)
- *   GET  /*                  dashboard estatico (ui/dist)
+ *   POST /api/book/import    carga por CSV
+ *   GET  /api/inclusion      prueba de inclusion de UNA cuenta
+ *   POST /api/attest|settle  dispara la emision / el settlement
+ *
+ * Publico (compartido con el sitio publico, ver api/routes-public.ts):
+ *   GET  /api/state /api/history /api/scan /api/chain
  */
 import * as http from 'node:http';
 import { randomBytes } from 'node:crypto';
@@ -20,10 +28,14 @@ import {
 } from '../src/entity-data';
 import { PRIVATE_STATE_ID } from '../src/contract';
 import { inclusionProof, verifyInclusion, merkleRoot } from '../src/merkle';
-import { computeScore } from '../src/score';
 import { ensureCounterparty, settlementPayment, PAYMENT_UNITS, TNIGHT } from '../src/payment';
+import { handlePublicApi, type LogEntry, type Job } from './routes-public';
+import { json, readBody, serveStatic } from './http-util';
 
 const PORT = Number(process.env.PORT ?? 3300);
+// Loopback por default: los libros no tienen puerta a la red. Se puede abrir
+// a proposito (ASFALIA_BIND=0.0.0.0) pero entonces es una decision explicita.
+const BIND = process.env.ASFALIA_BIND ?? '127.0.0.1';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UI_DIST = path.resolve(__dirname, '..', 'ui', 'dist');
 const LOG_FILE = process.env.ASFALIA_LOG ?? path.resolve(__dirname, '..', 'data', 'attest-log.json');
@@ -51,21 +63,6 @@ async function syncPrivateState() {
 // fuente de verdad paralela. Los huecos entre filas son SENAL: la entidad
 // eligio no probar en ese periodo.
 
-type LogEntry = {
-  ts: number; // epoch ms de emision
-  trigger: 'heartbeat' | 'manual';
-  ok: boolean;
-  verdict: boolean | null;
-  txId: string | null;
-  attestedAt: string | null;
-  validUntil: string | null;
-  assetsCommitment: string | null;
-  liabilitiesRoot: string | null;
-  durationSec: number | null;
-  error: string | null;
-};
-
-const scanCache = new Map<string, unknown>();
 let history: LogEntry[] = [];
 try { history = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch { /* primer arranque */ }
 
@@ -74,18 +71,6 @@ function appendHistory(e: LogEntry) {
   fs.writeFileSync(LOG_FILE, JSON.stringify(history, null, 2));
 }
 
-type Job = {
-  kind: 'attest' | 'settle' | null;
-  running: boolean;
-  phase: string;
-  startedAt: number | null;
-  finishedAt: number | null;
-  durationSec: number | null;
-  txId: string | null;
-  paymentTxId: string | null;
-  paymentTnight: number | null;
-  error: string | null;
-};
 const job: Job = {
   kind: null, running: false, phase: 'idle', startedAt: null, finishedAt: null,
   durationSec: null, txId: null, paymentTxId: null, paymentTnight: null, error: null,
@@ -178,115 +163,11 @@ function startHeartbeat() {
   setInterval(beat, HEARTBEAT_SEC * 1000);
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-const MIME: Record<string, string> = {
-  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
-  '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.png': 'image/png',
-};
-
-function json(res: http.ServerResponse, status: number, body: unknown) {
-  const s = JSON.stringify(body, (_, v) => (typeof v === 'bigint' ? v.toString() : v));
-  res.writeHead(status, { 'content-type': 'application/json' });
-  res.end(s);
-}
-
-function readBody(req: http.IncomingMessage): Promise<any> {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', (c) => (data += c));
-    req.on('end', () => { try { resolve(data ? JSON.parse(data) : {}); } catch (e) { reject(e); } });
-  });
-}
-
-// ── Rutas ──────────────────────────────────────────────────────────────────────
+// ── Rutas privadas ─────────────────────────────────────────────────────────────
+// Lo publico vive en routes-public.ts y lo monta tambien el sitio publico.
+// Lo que esta aca abajo NO se sirve en ningun lado expuesto a internet.
 
 async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
-  if (req.method === 'GET' && url.pathname === '/api/state') {
-    const ledger = await conn.readLedger();
-    return json(res, 200, {
-      network: conn.network,
-      contractAddress: conn.deployment.address,
-      entity: book.entity,
-      ledger, // verdict, attestedAt (epoch s), balancesCommitment — nada mas existe
-      attest: job,
-      score: computeScore(history, HEARTBEAT_SEC || null, Date.now()),
-      heartbeat: HEARTBEAT_SEC
-        ? { sec: HEARTBEAT_SEC, nextAt: nextBeatAt ? Math.floor(nextBeatAt / 1000) : null }
-        : null,
-      now: Math.floor(Date.now() / 1000),
-    });
-  }
-
-  if (req.method === 'GET' && url.pathname === '/api/history') {
-    return json(res, 200, {
-      heartbeatSec: HEARTBEAT_SEC || null,
-      entries: history,
-      score: computeScore(history, HEARTBEAT_SEC || null, Date.now()),
-    });
-  }
-
-  if (req.method === 'GET' && url.pathname === '/api/scan') {
-    // El scanner: cabeza de la cadena + cada emision de nuestro log resuelta
-    // contra el indexer (identifier -> hash real + bloque). Cache en memoria.
-    const { resolveNetwork } = await import('../src/network');
-    const { config } = resolveNetwork();
-    const gql = async (query: string) => {
-      const r = await fetch(config.indexer, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ query }),
-        signal: AbortSignal.timeout(8000),
-      });
-      return (await r.json()).data;
-    };
-    const head = (await gql('{ block { height hash timestamp } }'))?.block ?? null;
-    const rows: any[] = [];
-    for (const e of history.filter((x) => x.ok && x.txId).slice(-40)) {
-      const id = e.txId!;
-      if (!scanCache.has(id)) {
-        const d = await gql(
-          `{ transactions(offset: {identifier: "${id}"}) { hash block { height hash timestamp } } }`,
-        );
-        const tx = d?.transactions?.[0];
-        if (tx) scanCache.set(id, tx);
-      }
-      const tx = scanCache.get(id);
-      if (tx) rows.push({ identifier: id, verdict: e.verdict, trigger: e.trigger, ...tx });
-    }
-    rows.reverse(); // mas nuevas primero
-    return json(res, 200, { head, contractAddress: conn.deployment.address, rows });
-  }
-
-  if (req.method === 'GET' && url.pathname === '/api/chain') {
-    // La cadena, de primera mano, segun el INDEXER de la devnet (no nuestro
-    // log). Sin parametros: la ultima accion del contrato. Con ?tx=<id>:
-    // busca esa transaccion por su identifier (el txId que muestra la UI).
-    const { resolveNetwork } = await import('../src/network');
-    const { config } = resolveNetwork();
-    const txId = url.searchParams.get('tx');
-    const q = txId
-      ? {
-          query: `{ transactions(offset: {identifier: "${txId.replace(/[^0-9a-fA-F]/g, '')}"}) {
-            hash block { height timestamp hash }
-            contractActions { __typename address }
-          } }`,
-        }
-      : {
-      query: `{ contractAction(address: "${conn.deployment.address}") {
-        __typename address
-        transaction { hash block { height timestamp hash } }
-      } }`,
-    };
-    const r = await fetch(config.indexer, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(q),
-      signal: AbortSignal.timeout(8000),
-    });
-    return json(res, 200, await r.json());
-  }
-
   if (req.method === 'GET' && url.pathname === '/api/book') {
     // Solo la entidad ve esto: el server corre en SU maquina. El auditor
     // accede al certificado, que no contiene un solo numero.
@@ -474,18 +355,6 @@ function serveSample(res: http.ServerResponse, name: string) {
   fs.createReadStream(file).pipe(res);
 }
 
-function serveStatic(res: http.ServerResponse, urlPath: string) {
-  let file = path.join(UI_DIST, urlPath === '/' ? 'index.html' : urlPath);
-  if (!file.startsWith(UI_DIST)) { res.writeHead(403); return res.end(); }
-  if (!fs.existsSync(file)) file = path.join(UI_DIST, 'index.html'); // SPA fallback
-  if (!fs.existsSync(file)) {
-    res.writeHead(200, { 'content-type': 'text/plain' });
-    return res.end('Asfalia API viva. El dashboard no esta buildeado: npm run ui:build');
-  }
-  res.writeHead(200, { 'content-type': MIME[path.extname(file)] ?? 'application/octet-stream' });
-  fs.createReadStream(file).pipe(res);
-}
-
 // ── Arranque ───────────────────────────────────────────────────────────────────
 
 console.log('  Asfalia API — conectando al contrato…');
@@ -495,15 +364,36 @@ console.log(`  Contrato: ${conn.deployment.address.slice(0, 16)}… (${conn.netw
 http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
   try {
-    if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
+    if (url.pathname.startsWith('/api/')) {
+      // Primero lo publico (mismo codigo que el sitio del auditor), despues
+      // lo privado. Un endpoint vive en uno de los dos lados, nunca en ambos.
+      const handled = await handlePublicApi(req, res, url, {
+        mode: 'console',
+        network: conn.network,
+        contractAddress: conn.deployment.address,
+        entityName: book.entity,
+        indexer: conn.networkConfig.indexer,
+        readLedger: conn.readLedger,
+        readHistory: () => history,
+        heartbeatSec: HEARTBEAT_SEC || null,
+        nextBeatAt: () => nextBeatAt,
+        job: () => job,
+      });
+      if (handled) return;
+      return await handleApi(req, res, url);
+    }
     if (/^\/samples\/(assets|clients)\.csv$/.test(url.pathname)) {
       return serveSample(res, url.pathname.split('/').pop()!);
     }
-    return serveStatic(res, url.pathname);
+    return serveStatic(res, UI_DIST, url.pathname);
   } catch (e: any) {
     console.error('  error:', e?.message ?? e);
     return json(res, 500, { error: e?.message ?? 'error interno' });
   }
-}).listen(PORT, () => console.log(`  Dashboard: http://localhost:${PORT}\n`));
+}).listen(PORT, BIND, () => {
+  console.log(`  Consola de la entidad: http://${BIND}:${PORT}`);
+  if (BIND === '127.0.0.1') console.log('  (solo esta maquina — los libros no salen a la red)\n');
+  else console.log(`  AVISO: bindeada a ${BIND}. Los libros quedan alcanzables desde la red.\n`);
+});
 
 startHeartbeat();

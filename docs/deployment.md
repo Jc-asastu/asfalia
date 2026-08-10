@@ -62,9 +62,28 @@ The installer copies that authority secret to `/etc/asfalia/asfalia.env` with
 owner-only permissions so systemd can attest after a reboot. If the file already
 exists it is preserved; the installer never rotates the contract authority.
 
-The local console UI lives at `http://localhost:3300/console` — reachable only
-from the entity's own machine, never linked from the public portal. The public
-portal carries no balance endpoint at all: the books have no web door.
+The local console UI lives at `http://localhost:3300/console`. The console
+**binds to `127.0.0.1`**: it is not reachable from the network at all unless
+someone deliberately sets `ASFALIA_BIND=0.0.0.0`, and it says so in the log
+when they do. The public portal carries no balance endpoint at all: the books
+have no web door.
+
+That last sentence used to be an intention. It is now a separate binary:
+
+```bash
+ASFALIA_CONTRACT=<address> npm run dashboard:public   # or --contract <address>
+```
+
+`api/public-server.ts` reads the chain and nothing else — no wallet, no books,
+no proof server, no `.midnight-state.json` (which holds wallet seeds). It
+serves only `/api/state`, `/api/history`, `/api/scan` and `/api/chain`, binds
+to `0.0.0.0` because it is *meant* to be exposed, and answers a plain `404` to
+everything private. Anyone can host it: the entity, an audit firm, a stranger.
+
+The separation is enforced, not documented: `npm run check:public` walks the
+import graph from the public entrypoint and fails if it ever reaches the books,
+the wallet, the authority key or the proving machinery — and it runs on every
+push. A comment saying "only the entity sees this" is not a control; this is.
 
 Product north star: `npx asfalia init` — one command that scaffolds the books,
 installs the toolchain and starts the heartbeat as a service. The pieces already

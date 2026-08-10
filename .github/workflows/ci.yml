@@ -37,6 +37,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # La separacion publico/privado no es un comentario: se verifica.
+      # Si el sitio publico llega a los libros o a la wallet, esto rompe.
+      - name: Superficie publica
+        run: npm run check:public
+
   ui:
     name: UI (typecheck + build)
     runs-on: ubuntu-latest

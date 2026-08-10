@@ -31,11 +31,14 @@ export type Score = {
 };
 
 export type ServerState = {
+  /** 'console' = consola privada de la entidad; 'public' = sitio del auditor. */
+  mode: 'console' | 'public';
   network: string;
   contractAddress: string;
   entity: string;
   ledger: LedgerState;
-  attest: AttestJob;
+  /** null en el sitio publico: ahi no se emite nada. */
+  attest: AttestJob | null;
   score: Score;
   heartbeat: { sec: number; nextAt: number | null } | null;
   now: number; // epoch segundos del server — evita el reloj del cliente
