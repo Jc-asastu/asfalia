@@ -1,5 +1,5 @@
-import { loadClientTokenRegistry, clientAccountFromRequest } from '../api/access.ts';
-import { accountIdHex, loadUsers, toClientAccount } from '../src/entity-data.ts';
+import { loadClientTokenRegistry, clientAccountFromRequest } from '../api/access';
+import { accountIdHex, loadUsers, toClientAccount } from '../src/entity-data';
 
 let failures = 0;
 const expect = (condition: boolean, message: string) => {
