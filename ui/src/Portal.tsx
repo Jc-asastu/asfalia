@@ -1,28 +1,62 @@
 import { useState } from 'react';
-import { fmtCents, getInclusion, postVerifyInclusion, type InclusionResponse } from './api';
+import { getInclusion, type InclusionResponse } from './api';
+import { verifyInclusionLocally, type LocalInclusionVerdict } from './verify-inclusion';
 import { useI18n } from './i18n';
 
-/** Portal del cliente: la tercera pata del sistema. Un cliente del exchange
- *  verifica que SU saldo esta contado dentro de los pasivos declarados —
- *  contra la raiz on-chain, sin ver el saldo de nadie mas. */
-export function Portal({ accounts }: { accounts: { account: string; name: string }[] }) {
+/** Portal del cliente: la tercera pata del sistema.
+ *
+ *  Lo que cambia respecto de la version anterior no es cosmetico. Antes el
+ *  cliente le mandaba la hoja al servidor de la ENTIDAD y el servidor
+ *  contestaba "verificado": el cliente le preguntaba al auditado si el
+ *  auditado decia la verdad.
+ *
+ *  Ahora la entidad entrega el salt y los hermanos, el cliente escribe el
+ *  saldo que cree tener, y ESTE navegador reconstruye la hoja con los mismos
+ *  circuitos puros del contrato y la compara contra la raiz on-chain. La
+ *  entidad no participa del calculo, asi que no puede mentir en el.
+ */
+export function Portal({
+  accounts,
+  onChainRoot,
+  tokenRequired,
+}: {
+  accounts: { account: string; name: string }[];
+  onChainRoot: string | null;
+  tokenRequired: boolean;
+}) {
   const { t } = useI18n();
-  const [selected, setSelected] = useState('');
+  const [account, setAccount] = useState('');
+  const [amount, setAmount] = useState('');
+  const [token, setToken] = useState('');
   const [proof, setProof] = useState<InclusionResponse | null>(null);
-  const [verdict, setVerdict] = useState<{ verified: boolean; reason?: string } | null>(null);
+  const [verdict, setVerdict] = useState<LocalInclusionVerdict | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const run = async (account: string) => {
-    setSelected(account);
+  /** "1.234,50" / "1234.5" -> centavos. El cliente escribe como quiere. */
+  const toCents = (raw: string): string | null => {
+    const normalized = raw.trim().replace(/\s/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.');
+    if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null;
+    const [whole, frac = ''] = normalized.split('.');
+    return `${whole}${frac.padEnd(2, '0')}`;
+  };
+
+  const run = async () => {
     setProof(null);
     setVerdict(null);
-    if (!account) return;
+    setError(null);
+    const cents = toCents(amount);
+    if (!account || cents === null) {
+      setError(t.own_balance_hint);
+      return;
+    }
     setBusy(true);
     try {
-      const p = await getInclusion(account);
+      const p = await getInclusion(account, token.trim() || undefined);
       setProof(p);
-      const v = await postVerifyInclusion(p.leafHex, p.path);
-      setVerdict(v);
+      setVerdict(await verifyInclusionLocally(p, cents, onChainRoot));
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
     } finally {
       setBusy(false);
     }
@@ -40,16 +74,48 @@ export function Portal({ accounts }: { accounts: { account: string; name: string
         <p className="portal-lead">{t.portal_lead}</p>
 
         <label className="portal-label" htmlFor="account">{t.account}</label>
-        <select id="account" data-tour="account" value={selected} onChange={(e) => run(e.target.value)}>
-          <option value="">{t.choose_account}</option>
-          {accounts.map((a) => (
-            <option key={a.account} value={a.account}>
-              {a.account} — {a.name}
-            </option>
-          ))}
-        </select>
+        {accounts.length > 0 ? (
+          <select id="account" data-tour="account" value={account} onChange={(e) => setAccount(e.target.value)}>
+            <option value="">{t.choose_account}</option>
+            {accounts.map((a) => (
+              <option key={a.account} value={a.account}>
+                {a.account} — {a.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            id="account"
+            data-tour="account"
+            value={account}
+            onChange={(e) => setAccount(e.target.value)}
+            placeholder="AX-2026-0001"
+          />
+        )}
 
-        {busy && <p className="portal-busy">{t.portal_busy}</p>}
+        <label className="portal-label" htmlFor="amount">{t.own_balance_input}</label>
+        <input
+          id="amount"
+          inputMode="decimal"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="5.935.828,61"
+        />
+        <p className="portal-hint">{t.own_balance_hint}</p>
+
+        {tokenRequired && (
+          <>
+            <label className="portal-label" htmlFor="token">{t.access_token}</label>
+            <input id="token" type="password" value={token} onChange={(e) => setToken(e.target.value)} />
+            <p className="portal-hint">{t.access_token_hint}</p>
+          </>
+        )}
+
+        <button className="portal-verify" onClick={run} disabled={busy}>
+          {busy ? t.portal_busy : t.verify_btn}
+        </button>
+
+        {error && <p className="portal-error" aria-live="polite">{error}</p>}
 
         {proof && verdict && (
           <div className={`portal-result ${verdict.verified ? 'ok' : 'bad'}`} aria-live="polite">
@@ -61,13 +127,13 @@ export function Portal({ accounts }: { accounts: { account: string; name: string
                   }`}
             </div>
             <dl className="portal-detail">
-              <div><dt>{t.holder}</dt><dd>{proof.name}</dd></div>
-              <div><dt>{t.own_balance}</dt><dd>{fmtCents(proof.cents)} USD</dd></div>
-              <div><dt>{t.leaf}</dt><dd>{proof.leafHex.slice(0, 34)}…</dd></div>
+              <div><dt>{t.account}</dt><dd>{proof.account}</dd></div>
+              <div><dt>{t.leaf}</dt><dd>{verdict.leafHex.slice(0, 34)}…</dd></div>
               <div><dt>{t.path}</dt><dd>{t.siblings(proof.path.length)}</dd></div>
-              <div><dt>{t.reconstructed_root}</dt><dd>{proof.rootHex.slice(0, 34)}…</dd></div>
+              <div><dt>{t.reconstructed_root}</dt><dd>{verdict.rootHex.slice(0, 34)}…</dd></div>
             </dl>
             <p className="portal-note">{t.portal_note}</p>
+            <p className="portal-note">{t.verify_local_note}</p>
           </div>
         )}
       </section>

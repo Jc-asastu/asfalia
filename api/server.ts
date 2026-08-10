@@ -27,7 +27,8 @@ import {
   type EntityBook, type DemoUser,
 } from '../src/entity-data';
 import { PRIVATE_STATE_ID } from '../src/contract';
-import { inclusionProof, verifyInclusion, merkleRoot } from '../src/merkle';
+import { inclusionProof } from '../src/merkle';
+import { loadClientTokenRegistry, clientAccountFromRequest } from './access';
 import { ensureCounterparty, settlementPayment, PAYMENT_UNITS, TNIGHT } from '../src/payment';
 import { handlePublicApi, type LogEntry, type Job } from './routes-public';
 import { json, readBody, serveStatic } from './http-util';
@@ -36,6 +37,11 @@ const PORT = Number(process.env.PORT ?? 3300);
 // Loopback por default: los libros no tienen puerta a la red. Se puede abrir
 // a proposito (ASFALIA_BIND=0.0.0.0) pero entonces es una decision explicita.
 const BIND = process.env.ASFALIA_BIND ?? '127.0.0.1';
+
+// Portal del cliente: segundo listener, opcional, pensado para exponerse.
+const CLIENT_PORT = Number(process.env.ASFALIA_CLIENT_PORT ?? 0);
+const CLIENT_BIND = process.env.ASFALIA_CLIENT_BIND ?? '0.0.0.0';
+const CLIENT_TOKENS = loadClientTokenRegistry();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UI_DIST = path.resolve(__dirname, '..', 'ui', 'dist');
 const LOG_FILE = process.env.ASFALIA_LOG ?? path.resolve(__dirname, '..', 'data', 'attest-log.json');
@@ -161,6 +167,46 @@ function startHeartbeat() {
   console.log(`  Heartbeat: cada ${HEARTBEAT_SEC}s (vigencia fijada al desplegar)`);
   beat();
   setInterval(beat, HEARTBEAT_SEC * 1000);
+}
+
+// ── Prueba de inclusion (portal del cliente) ───────────────────────────────────
+// Es la unica ruta con datos de la entidad que puede quedar expuesta, porque
+// es la unica que un cliente necesita desde afuera. Devuelve el SALT y el
+// camino de hermanos — no el saldo: el saldo lo pone el cliente de memoria y
+// el navegador reconstruye la hoja. Si la entidad miente, la hoja no da.
+//
+// En el listener del cliente exige un token que autoriza UNA cuenta. En la
+// consola (loopback) no: ahi ya estas adentro de la maquina de la entidad.
+
+async function handleInclusion(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  url: URL,
+  scope: 'console' | 'client',
+): Promise<boolean> {
+  if (req.method !== 'GET' || url.pathname !== '/api/inclusion') return false;
+
+  const requested = url.searchParams.get('account');
+  const authorized = clientAccountFromRequest(req, CLIENT_TOKENS);
+  const account = scope === 'console' ? requested : authorized;
+
+  if (scope === 'client' && !authorized) {
+    res.setHeader('www-authenticate', 'Bearer');
+    json(res, 401, { error: 'token de acceso invalido' });
+    return true;
+  }
+  if (scope === 'client' && requested && requested !== authorized) {
+    json(res, 403, { error: 'el token no autoriza esa cuenta' });
+    return true;
+  }
+  if (!account) { json(res, 400, { error: 'falta la cuenta' }); return true; }
+
+  const idx = users.findIndex((u) => u.account === account);
+  if (idx < 0) { json(res, 404, { error: 'cuenta desconocida' }); return true; }
+
+  const proof = await inclusionProof(users.map(toClientAccount), idx, users[idx].account);
+  json(res, 200, { account: proof.account, saltHex: users[idx].saltHex, path: proof.path });
+  return true;
 }
 
 // ── Rutas privadas ─────────────────────────────────────────────────────────────
@@ -306,36 +352,6 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     return json(res, 200, { ok: true, book: { ...book, users } });
   }
 
-  if (req.method === 'GET' && url.pathname === '/api/inclusion') {
-    // Prueba de inclusion para una cuenta: la entidad se la entrega a SU
-    // cliente (en produccion, autenticado). Contiene el saldo propio y el
-    // camino de hermanos — jamas el saldo de otro.
-    const account = url.searchParams.get('account');
-    const idx = users.findIndex((u) => u.account === account);
-    if (idx < 0) return json(res, 404, { error: 'cuenta desconocida' });
-    const clients = users.map(toClientAccount);
-    const proof = await inclusionProof(clients, idx, users[idx].account);
-    return json(res, 200, {
-      ...proof,
-      name: users[idx].name,
-      cents: users[idx].cents,
-      localRootHex: await merkleRoot(clients),
-    });
-  }
-
-  if (req.method === 'POST' && url.pathname === '/api/verify-inclusion') {
-    // Verificacion del lado del cliente: camino -> raiz, y la raiz se compara
-    // contra la RAIZ ON-CHAIN. Si la entidad escondio la cuenta, no cierra.
-    const { leafHex, path: proofPath, } = await readBody(req);
-    if (!leafHex || !Array.isArray(proofPath)) return json(res, 400, { error: 'leafHex y path' });
-    const ledger = await conn.readLedger();
-    if (!ledger || !/[^0]/.test(ledger.liabilitiesRoot)) {
-      return json(res, 200, { verified: false, reason: 'no_attest' });
-    }
-    const verified = await verifyInclusion(leafHex, proofPath, ledger.liabilitiesRoot);
-    return json(res, 200, { verified, onChainRoot: ledger.liabilitiesRoot });
-  }
-
   if (req.method === 'POST' && (url.pathname === '/api/attest' || url.pathname === '/api/settle')) {
     if (job.running) return json(res, 409, { error: 'operacion en curso' });
     void runJob(url.pathname === '/api/attest' ? 'attest' : 'settle');
@@ -361,39 +377,69 @@ console.log('  Asfalia API — conectando al contrato…');
 conn = await connectAsfalia((m) => console.log(`  … ${m}`));
 console.log(`  Contrato: ${conn.deployment.address.slice(0, 16)}… (${conn.network})`);
 
-http.createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
-  try {
-    if (url.pathname.startsWith('/api/')) {
-      // Primero lo publico (mismo codigo que el sitio del auditor), despues
-      // lo privado. Un endpoint vive en uno de los dos lados, nunca en ambos.
-      const handled = await handlePublicApi(req, res, url, {
-        mode: 'console',
-        network: conn.network,
-        contractAddress: conn.deployment.address,
-        entityName: book.entity,
-        indexer: conn.networkConfig.indexer,
-        readLedger: conn.readLedger,
-        readHistory: () => history,
-        heartbeatSec: HEARTBEAT_SEC || null,
-        nextBeatAt: () => nextBeatAt,
-        job: () => job,
-      });
-      if (handled) return;
-      return await handleApi(req, res, url);
+/** Un listener. El `scope` decide que rutas existen — no que rutas se filtran. */
+function listener(scope: 'console' | 'client') {
+  return async (req: http.IncomingMessage, res: http.ServerResponse) => {
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    try {
+      if (url.pathname.startsWith('/api/')) {
+        // Lo publico primero (mismo codigo que el sitio del auditor).
+        const handled = await handlePublicApi(req, res, url, {
+          mode: scope,
+          clientProof: true,
+          network: conn.network,
+          contractAddress: conn.deployment.address,
+          entityName: book.entity,
+          indexer: conn.networkConfig.indexer,
+          readLedger: conn.readLedger,
+          readHistory: () => history,
+          heartbeatSec: HEARTBEAT_SEC || null,
+          nextBeatAt: () => nextBeatAt,
+          job: () => (scope === 'console' ? job : null),
+        });
+        if (handled) return;
+        if (await handleInclusion(req, res, url, scope)) return;
+        // El portal del cliente termina aca: los libros, la carga por CSV y
+        // la emision no tienen ruta en este listener.
+        if (scope === 'client') return json(res, 404, { error: 'no existe' });
+        return await handleApi(req, res, url);
+      }
+      if (scope === 'console' && /^\/samples\/(assets|clients)\.csv$/.test(url.pathname)) {
+        return serveSample(res, url.pathname.split('/').pop()!);
+      }
+      // /console no se sirve desde el portal expuesto.
+      if (scope === 'client' && url.pathname.startsWith('/console')) {
+        return json(res, 404, { error: 'no existe' });
+      }
+      return serveStatic(res, UI_DIST, url.pathname);
+    } catch (e: any) {
+      console.error('  error:', e?.message ?? e);
+      return json(res, 500, { error: e?.message ?? 'error interno' });
     }
-    if (/^\/samples\/(assets|clients)\.csv$/.test(url.pathname)) {
-      return serveSample(res, url.pathname.split('/').pop()!);
-    }
-    return serveStatic(res, UI_DIST, url.pathname);
-  } catch (e: any) {
-    console.error('  error:', e?.message ?? e);
-    return json(res, 500, { error: e?.message ?? 'error interno' });
-  }
-}).listen(PORT, BIND, () => {
+  };
+}
+
+http.createServer(listener('console')).listen(PORT, BIND, () => {
   console.log(`  Consola de la entidad: http://${BIND}:${PORT}`);
-  if (BIND === '127.0.0.1') console.log('  (solo esta maquina — los libros no salen a la red)\n');
-  else console.log(`  AVISO: bindeada a ${BIND}. Los libros quedan alcanzables desde la red.\n`);
+  if (BIND === '127.0.0.1') console.log('  (solo esta maquina — los libros no salen a la red)');
+  else console.log(`  AVISO: bindeada a ${BIND}. Los libros quedan alcanzables desde la red.`);
 });
+
+// Portal del cliente: opcional y expuesto a proposito. Sirve las vistas
+// publicas y la prueba de inclusion de UNA cuenta, contra token. Sin token
+// configurado no se levanta: un portal abierto seria peor que no tenerlo.
+if (CLIENT_PORT) {
+  if (CLIENT_TOKENS.size === 0) {
+    console.error('  ASFALIA_CLIENT_PORT sin ASFALIA_CLIENT_TOKENS: no se levanta el portal.');
+    console.error('  Un portal sin tokens serviria saldos a cualquiera que adivine una cuenta.\n');
+  } else {
+    http.createServer(listener('client')).listen(CLIENT_PORT, CLIENT_BIND, () => {
+      console.log(`  Portal del cliente: http://${CLIENT_BIND}:${CLIENT_PORT} (${CLIENT_TOKENS.size} token/s)`);
+      console.log('  (sin libros, sin emision, sin /console — solo la prueba de la cuenta del token)\n');
+    });
+  }
+} else {
+  console.log('');
+}
 
 startHeartbeat();

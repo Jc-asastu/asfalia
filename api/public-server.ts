@@ -61,6 +61,9 @@ http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/')) {
       const handled = await handlePublicApi(req, res, url, {
         mode: 'public',
+        // El sitio del auditor no tiene los libros: no puede armar la prueba
+        // de inclusion de nadie. Eso lo sirve la entidad, contra token.
+        clientProof: false,
         network: view.network,
         contractAddress: view.contractAddress,
         entityName: process.env.ASFALIA_ENTITY_NAME ?? 'Entidad',

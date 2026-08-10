@@ -126,7 +126,7 @@ function Shell() {
 
   // El servidor manda: en modo publico no hay consola, aunque se escriba
   // /console a mano en la barra de direcciones.
-  const isConsole = consolePath && state?.mode !== 'public';
+  const isConsole = consolePath && state?.mode === 'console';
   useEffect(() => {
     if (!isConsole && view === 'treasury') setView('auditor');
   }, [isConsole, view]);
@@ -167,7 +167,11 @@ function Shell() {
     v === 'auditor' ? (
       <Certificate state={state} now={now} />
     ) : v === 'portal' ? (
-      <Portal accounts={accounts} />
+      <Portal
+        accounts={accounts}
+        onChainRoot={state?.ledger?.liabilitiesRoot ?? null}
+        tokenRequired={state?.mode === 'client'}
+      />
     ) : v === 'history' ? (
       <History state={state} now={now} />
     ) : v === 'scanner' ? (
