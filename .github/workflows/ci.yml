@@ -73,6 +73,15 @@ jobs:
           name: contract-module
           path: contracts/managed/asfalia/contract
 
+      # El modulo del contrato vive FUERA de ui/, asi que su resolucion de
+      # imports sube por el arbol y busca @midnight-ntwrk/compact-runtime en
+      # el node_modules de la raiz — nunca en el de ui/. Sin esto, Rollup no
+      # lo encuentra. Se instala aca en vez de duplicar el runtime wasm en
+      # las dependencias de la UI.
+      - name: Dependencias de la raiz (para el runtime del contrato)
+        run: npm ci
+        working-directory: .
+
       - run: npm ci
 
       - name: Typecheck
