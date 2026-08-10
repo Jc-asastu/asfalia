@@ -56,8 +56,15 @@ export type LedgerView = {
  * tiene.
  */
 export type PublicDeps = {
-  /** 'console' habilita la consola privada en la UI; 'public' la esconde. */
-  mode: 'console' | 'public';
+  /**
+   * Que listener esta respondiendo:
+   *   'console' — consola de la entidad, en loopback. Habilita /console en la UI.
+   *   'client'  — portal del cliente, expuesto, con token por cuenta.
+   *   'public'  — sitio del auditor, sin nada de la entidad.
+   */
+  mode: 'console' | 'client' | 'public';
+  /** Si este listener puede entregar pruebas de inclusion. */
+  clientProof: boolean;
   network: string;
   contractAddress: string;
   /** Nombre visible de la entidad. No es un secreto. */
@@ -98,6 +105,7 @@ export async function handlePublicApi(
     const ledger = await d.readLedger();
     json(res, 200, {
       mode: d.mode,
+      capabilities: { entityConsole: d.mode === 'console', clientProof: d.clientProof },
       network: d.network,
       contractAddress: d.contractAddress,
       entity: d.entityName,

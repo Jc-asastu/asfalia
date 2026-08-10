@@ -31,8 +31,12 @@ export type Score = {
 };
 
 export type ServerState = {
-  /** 'console' = consola privada de la entidad; 'public' = sitio del auditor. */
-  mode: 'console' | 'public';
+  /**
+   * Que listener contesto: consola de la entidad (loopback), portal del
+   * cliente (expuesto, con token) o sitio del auditor (solo cadena).
+   */
+  mode: 'console' | 'client' | 'public';
+  capabilities: { entityConsole: boolean; clientProof: boolean };
   network: string;
   contractAddress: string;
   entity: string;
@@ -68,13 +72,16 @@ export type Book = {
   users: BookUser[];
 };
 
+/**
+ * Lo que la entidad entrega para una cuenta. Notar lo que NO viene: el saldo.
+ * El saldo lo pone el cliente; el navegador reconstruye la hoja con el salt y
+ * el camino. Si el server mandara la hoja ya hecha, el cliente estaria
+ * verificando la aritmetica del auditado.
+ */
 export type InclusionResponse = {
   account: string;
-  name: string;
-  cents: string;
-  leafHex: string;
+  saltHex: string;
   path: { siblingHex: string; siblingSide: 'left' | 'right' }[];
-  rootHex: string;
 };
 
 export const getState = (): Promise<ServerState> =>
@@ -131,15 +138,17 @@ export const importCsv = (kind: 'assets' | 'clients', csv: string) =>
     body: JSON.stringify({ kind, csv }),
   }).then((r) => r.json());
 
-export const getInclusion = (account: string): Promise<InclusionResponse> =>
-  fetch(`/api/inclusion?account=${encodeURIComponent(account)}`).then((r) => r.json());
-
-export const postVerifyInclusion = (leafHex: string, path: InclusionResponse['path']) =>
-  fetch('/api/verify-inclusion', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ leafHex, path }),
-  }).then((r) => r.json());
+export const getInclusion = async (
+  account: string,
+  accessToken?: string,
+): Promise<InclusionResponse> => {
+  const headers: Record<string, string> = {};
+  if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+  const r = await fetch(`/api/inclusion?account=${encodeURIComponent(account)}`, { headers });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(typeof body?.error === 'string' ? body.error : `HTTP ${r.status}`);
+  return body as InclusionResponse;
+};
 
 /** Centavos -> "1.824.500.000,00" (es-AR). */
 export const fmtCents = (cents: string) => {

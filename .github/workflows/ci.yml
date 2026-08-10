@@ -42,10 +42,19 @@ jobs:
       - name: Superficie publica
         run: npm run check:public
 
+      # Los tokens del portal del cliente: uno autoriza UNA cuenta y nada mas.
+      - name: Tokens de acceso
+        run: npm run check:access
+
   ui:
     name: UI (typecheck + build)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # La UI verifica la inclusion en el navegador con los circuitos puros del
+    # contrato, asi que necesita el contrato compilado. Lo compila el job de
+    # abajo una sola vez y viaja como artifact: no hace falta un segundo
+    # toolchain aca.
+    needs: contract
     defaults:
       run:
         working-directory: ui
@@ -57,6 +66,21 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: ui/package-lock.json
+
+      - name: Traer el contrato compilado
+        uses: actions/download-artifact@v4
+        with:
+          name: contract-module
+          path: contracts/managed/asfalia/contract
+
+      # El modulo del contrato vive FUERA de ui/, asi que su resolucion de
+      # imports sube por el arbol y busca @midnight-ntwrk/compact-runtime en
+      # el node_modules de la raiz — nunca en el de ui/. Sin esto, Rollup no
+      # lo encuentra. Se instala aca en vez de duplicar el runtime wasm en
+      # las dependencias de la UI.
+      - name: Dependencias de la raiz (para el runtime del contrato)
+        run: npm ci
+        working-directory: .
 
       - run: npm ci
 
@@ -107,6 +131,15 @@ jobs:
 
       - name: Compilar contrato
         run: npm run compile
+
+      # Solo el modulo JS del contrato: es lo unico que la UI necesita para
+      # verificar en el navegador. Las claves ZK se quedan aca.
+      - name: Publicar el modulo del contrato
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-module
+          path: contracts/managed/asfalia/contract
+          retention-days: 1
 
       - name: Typecheck de los scripts
         run: npm run typecheck:scripts
