@@ -434,7 +434,7 @@ const I18nContext = createContext<{ t: Strings; lang: Lang; setLang: (l: Lang) =
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>(
-    () => (localStorage.getItem('asfalia-lang') as Lang) || 'en',
+    () => localStorage.getItem('asfalia-lang') === 'es' ? 'es' : 'en',
   );
   useEffect(() => {
     localStorage.setItem('asfalia-lang', lang);
