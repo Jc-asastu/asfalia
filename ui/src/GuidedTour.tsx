@@ -32,24 +32,33 @@ function measure(target: string, scroll: boolean): Rect | null {
 
 function pickSide(hole: Rect): CardSide {
   const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const cardWidth = Math.min(CARD_W, vw - MARGIN * 2);
   const cx = hole.left + hole.width / 2;
-  if (cx < vw / 3) return 'right';
-  if (cx > (vw * 2) / 3) return 'left';
-  if (hole.top + hole.height + 210 < window.innerHeight) return 'below';
-  return 'above';
+  const fitsRight = hole.left + hole.width + GAP + cardWidth + MARGIN <= vw;
+  const fitsLeft = hole.left - GAP - cardWidth >= MARGIN;
+  if (cx < vw / 3 && fitsRight) return 'right';
+  if (cx > (vw * 2) / 3 && fitsLeft) return 'left';
+  if (hole.top + hole.height + GAP + EST_H + MARGIN <= vh) return 'below';
+  if (hole.top - GAP - EST_H >= MARGIN) return 'above';
+  if (fitsRight) return 'right';
+  if (fitsLeft) return 'left';
+  return hole.top + hole.height / 2 < vh / 2 ? 'below' : 'above';
 }
 
 const CARD_W = 330, GAP = 16, MARGIN = 12, EST_H = 200, PAD = 8;
 
 function cardPosition(hole: Rect, side: CardSide) {
   const vw = window.innerWidth, vh = window.innerHeight;
+  const cardWidth = Math.min(CARD_W, vw - MARGIN * 2);
+  const clampLeft = (left: number) => Math.min(Math.max(MARGIN, left), vw - cardWidth - MARGIN);
   if (side === 'right')
-    return { top: Math.min(Math.max(MARGIN, hole.top), vh - EST_H - MARGIN), left: Math.min(hole.left + hole.width + GAP, vw - CARD_W - MARGIN) };
+    return { top: Math.min(Math.max(MARGIN, hole.top), vh - EST_H - MARGIN), left: clampLeft(hole.left + hole.width + GAP) };
   if (side === 'left')
-    return { top: Math.min(Math.max(MARGIN, hole.top), vh - EST_H - MARGIN), left: Math.max(MARGIN, hole.left - GAP - CARD_W) };
+    return { top: Math.min(Math.max(MARGIN, hole.top), vh - EST_H - MARGIN), left: clampLeft(hole.left - GAP - cardWidth) };
   if (side === 'below')
-    return { top: Math.min(hole.top + hole.height + GAP, vh - EST_H - MARGIN), left: Math.min(Math.max(MARGIN, hole.left), vw - CARD_W - MARGIN) };
-  return { top: Math.max(MARGIN, hole.top - GAP - EST_H), left: Math.min(Math.max(MARGIN, hole.left), vw - CARD_W - MARGIN) };
+    return { top: Math.min(hole.top + hole.height + GAP, vh - EST_H - MARGIN), left: clampLeft(hole.left) };
+  return { top: Math.max(MARGIN, hole.top - GAP - EST_H), left: clampLeft(hole.left) };
 }
 
 export function GuidedTour({
