@@ -4,6 +4,25 @@ import { useI18n, dateLocale } from './i18n';
 
 type Cell = { kind: 'attest'; entry: LogEntry } | { kind: 'gap'; from: number; to: number };
 
+function sameCell(a: Cell | null, b: Cell): boolean {
+  if (!a || a.kind !== b.kind) return false;
+  if (a.kind === 'gap') return b.kind === 'gap' && a.from === b.from && a.to === b.to;
+  if (b.kind !== 'attest') return false;
+  const x = a.entry;
+  const y = b.entry;
+  return x.ts === y.ts
+    && x.trigger === y.trigger
+    && x.ok === y.ok
+    && x.verdict === y.verdict
+    && x.txId === y.txId
+    && x.attestedAt === y.attestedAt
+    && x.validUntil === y.validUntil
+    && x.assetsCommitment === y.assetsCommitment
+    && x.liabilitiesRoot === y.liabilitiesRoot
+    && x.durationSec === y.durationSec
+    && x.error === y.error;
+}
+
 /** Historial de emisiones: el latido hecho visible. Verde = solvente,
  *  rojo = insolvente, ORO = la entidad eligio no probar en ese periodo.
  *  Cada celda con attest apunta a su tx on-chain. */
@@ -93,7 +112,7 @@ export function History({ state, now }: { state: ServerState | null; now: number
             <button
               key={i}
               role="listitem"
-              className={`${cellClass(c)} ${selected === c ? 'selected' : ''}`}
+              className={`${cellClass(c)} ${sameCell(selected, c) ? 'selected' : ''}`}
               title={cellTitle(c)}
               aria-label={cellTitle(c)}
               onClick={() => setSelected(c)}
