@@ -81,7 +81,10 @@ const consolePath = window.location.pathname.startsWith('/console');
 function Shell() {
   const { t, lang, setLang } = useI18n();
   const [theme, setTheme] = useState<'dark' | 'light'>(
-    () => (localStorage.getItem('asfalia-theme') as 'dark' | 'light') || 'dark',
+    () => {
+      const stored = localStorage.getItem('asfalia-theme');
+      return stored === 'light' || stored === 'dark' ? stored : 'dark';
+    },
   );
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
