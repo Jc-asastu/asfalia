@@ -84,8 +84,12 @@ export type InclusionResponse = {
   path: { siblingHex: string; siblingSide: 'left' | 'right' }[];
 };
 
-export const getState = (): Promise<ServerState> =>
-  fetch('/api/state').then((r) => r.json());
+export const getState = async (): Promise<ServerState> => {
+  const r = await fetch('/api/state');
+  const body = await r.json();
+  if (!r.ok) throw new Error(typeof body?.error === 'string' ? body.error : `HTTP ${r.status}`);
+  return body as ServerState;
+};
 
 export const getBook = (): Promise<Book> => fetch('/api/book').then((r) => r.json());
 
