@@ -132,8 +132,12 @@ export type ScanResponse = {
   rows: ScanRow[];
 };
 
-export const getScan = (): Promise<ScanResponse> =>
-  fetch('/api/scan').then((r) => r.json());
+export const getScan = async (): Promise<ScanResponse> => {
+  const r = await fetch('/api/scan');
+  const body = await r.json();
+  if (!r.ok) throw new Error(typeof body?.error === 'string' ? body.error : `HTTP ${r.status}`);
+  return body as ScanResponse;
+};
 
 export const importCsv = (kind: 'assets' | 'clients', csv: string) =>
   fetch('/api/book/import', {
